@@ -105,6 +105,8 @@
             <ui:ListView
                 HorizontalAlignment="Stretch"
                 VerticalAlignment="Stretch"
+                helpers:ListViewReorderBehavior.IsEnabled="True"
+                helpers:ListViewReorderBehavior.ReorderCommand="{Binding ViewModel.ReorderProfileCommand}"
                 DockPanel.Dock="Top"
                 ItemsSource="{Binding ViewModel.ProfilesViewModels}"
                 ScrollViewer.HorizontalScrollBarVisibility="Disabled"
@@ -120,15 +122,24 @@
                                     <RowDefinition Height="30" />
                                 </Grid.RowDefinitions>
                                 <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto" />
                                     <ColumnDefinition Width="5*" />
                                     <ColumnDefinition Width="*" />
                                 </Grid.ColumnDefinitions>
+                                <ui:SymbolIcon
+                                    Width="16"
+                                    Height="16"
+                                    VerticalAlignment="Center"
+                                    Opacity="0.6"
+                                    Symbol="ReOrderDotsVertical24"
+                                    Visibility="{Binding CanReorder, Converter={StaticResource BoolToVis}}" />
                                 <ui:TextBlock
-                                    Margin="10,0,0,0"
+                                    Grid.Column="1"
+                                    Margin="6,0,0,0"
                                     HorizontalAlignment="Stretch"
                                     VerticalAlignment="Center"
                                     Text="{Binding Name}" />
-                                <ui:SymbolIcon Grid.Column="1" Symbol="Globe24">
+                                <ui:SymbolIcon Grid.Column="2" Symbol="Globe24">
                                     <ui:SymbolIcon.Style>
                                         <Style TargetType="ui:SymbolIcon">
                                             <Setter Property="Visibility" Value="Hidden" />
