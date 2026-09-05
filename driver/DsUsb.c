@@ -486,13 +486,16 @@ NTSTATUS DsUsb_PrepareHardware(WDFDEVICE Device)
 			pDevCtx->DeviceAddress.Address[5]
 		);
 
-		//
-		// Convert to expected hex string
-		// 
-		swprintf_s(
+		DsDevice_FormatCanonicalAddress(
+			pDevCtx,
 			deviceAddress,
-			ARRAYSIZE(deviceAddress),
-			L"%02X%02X%02X%02X%02X%02X",
+			ARRAYSIZE(deviceAddress)
+		);
+
+		sprintf_s(
+			pDevCtx->DeviceAddressString,
+			ARRAYSIZE(pDevCtx->DeviceAddressString),
+			"%02X%02X%02X%02X%02X%02X",
 			pDevCtx->DeviceAddress.Address[0],
 			pDevCtx->DeviceAddress.Address[1],
 			pDevCtx->DeviceAddress.Address[2],
@@ -527,9 +530,10 @@ NTSTATUS DsUsb_PrepareHardware(WDFDEVICE Device)
 #pragma endregion
 
 		//
-		// Disconnect Bluetooth connection, if detected
-		//
-
+		// Ask any existing wireless instance of this MAC to disconnect
+		// (issue #330). Wired presence is discovered via PnP, not a
+		// named event.
+		// 
 		DsDevice_InvokeLocalBthDisconnect(pDevCtx);
 
 #pragma region Request host BTH address
@@ -593,18 +597,6 @@ NTSTATUS DsUsb_PrepareHardware(WDFDEVICE Device)
 		}
 
 	} while (FALSE);
-
-    sprintf_s(
-        pDevCtx->DeviceAddressString,
-        ARRAYSIZE(pDevCtx->DeviceAddressString),
-        "%02X%02X%02X%02X%02X%02X",
-        pDevCtx->DeviceAddress.Address[0],
-        pDevCtx->DeviceAddress.Address[1],
-        pDevCtx->DeviceAddress.Address[2],
-        pDevCtx->DeviceAddress.Address[3],
-        pDevCtx->DeviceAddress.Address[4],
-        pDevCtx->DeviceAddress.Address[5]
-    );
 
 	FuncExit(TRACE_DSUSB, "status=%!STATUS!", status);
 

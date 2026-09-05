@@ -17,6 +17,33 @@ DsBth_EvtStartupDelayTimerFunc(
 	const PDEVICE_CONTEXT pDevCtx = DeviceGetContext(WdfTimerGetParentObject(Timer));
 
 	//
+	// Wired always wins: if the same MAC is already present over USB, drop
+	// this wireless instance before starting the input stream (issue #330).
+	// 
+	if (DsDevice_IsWiredInstancePresent(pDevCtx))
+	{
+		TraceInformation(
+			TRACE_DSBTH,
+			"Wired instance of %s is already present, disconnecting wireless",
+			pDevCtx->DeviceAddressString
+		);
+		EventWriteYieldingToWiredInstance(pDevCtx->DeviceAddressString);
+
+		if (!NT_SUCCESS(status = DsBth_SendDisconnectRequest(pDevCtx)))
+		{
+			TraceError(
+				TRACE_DSBTH,
+				"DsBth_SendDisconnectRequest failed with status %!STATUS!",
+				status
+			);
+			EventWriteFailedWithNTStatus(__FUNCTION__, L"DsBth_SendDisconnectRequest", status);
+		}
+
+		FuncExitNoReturn(TRACE_DSBTH);
+		return;
+	}
+
+	//
 	// We have not yet received an input report from the remote device
 	// 
 	if (pDevCtx->BatteryStatus == DsBatteryStatusNone)

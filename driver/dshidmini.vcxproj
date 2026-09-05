@@ -184,7 +184,7 @@
       <AdditionalIncludeDirectories>$(SolutionDir)include;$(DmfRootPath)\DMF\Modules.Library;$(DmfRootPath)\DMF\Framework;$(IntDir);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
-      <AdditionalDependencies>%(AdditionalDependencies);OneCoreUAP.lib;BluetoothApis.lib</AdditionalDependencies>
+      <AdditionalDependencies>%(AdditionalDependencies);OneCoreUAP.lib;BluetoothApis.lib;cfgmgr32.lib</AdditionalDependencies>
       <IgnoreSpecificDefaultLibraries>libcmtd;%(IgnoreSpecificDefaultLibraries);kernel32.lib;user32.lib</IgnoreSpecificDefaultLibraries>
     </Link>
     <MessageCompile>
@@ -204,7 +204,7 @@
       <AdditionalIncludeDirectories>$(SolutionDir)include;$(DmfRootPath)\DMF\Modules.Library;$(DmfRootPath)\DMF\Framework;$(IntDir);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
-      <AdditionalDependencies>%(AdditionalDependencies);OneCoreUAP.lib;BluetoothApis.lib</AdditionalDependencies>
+      <AdditionalDependencies>%(AdditionalDependencies);OneCoreUAP.lib;BluetoothApis.lib;cfgmgr32.lib</AdditionalDependencies>
       <IgnoreSpecificDefaultLibraries>%(IgnoreSpecificDefaultLibraries);kernel32.lib;user32.lib</IgnoreSpecificDefaultLibraries>
     </Link>
     <Inf>
@@ -225,7 +225,7 @@
       <AdditionalIncludeDirectories>$(SolutionDir)include;$(DmfRootPath)\DMF\Modules.Library;$(DmfRootPath)\DMF\Framework;$(IntDir);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
-      <AdditionalDependencies>%(AdditionalDependencies);OneCoreUAP.lib;BluetoothApis.lib</AdditionalDependencies>
+      <AdditionalDependencies>%(AdditionalDependencies);OneCoreUAP.lib;BluetoothApis.lib;cfgmgr32.lib</AdditionalDependencies>
       <IgnoreSpecificDefaultLibraries>%(IgnoreSpecificDefaultLibraries);kernel32.lib;user32.lib</IgnoreSpecificDefaultLibraries>
     </Link>
     <MessageCompile>
@@ -240,7 +240,7 @@
       <AdditionalIncludeDirectories>$(SolutionDir)include;$(DmfRootPath)\DMF\Modules.Library;$(DmfRootPath)\DMF\Framework;$(IntDir);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
-      <AdditionalDependencies>%(AdditionalDependencies);OneCoreUAP.lib;BluetoothApis.lib</AdditionalDependencies>
+      <AdditionalDependencies>%(AdditionalDependencies);OneCoreUAP.lib;BluetoothApis.lib;cfgmgr32.lib</AdditionalDependencies>
       <IgnoreSpecificDefaultLibraries>%(IgnoreSpecificDefaultLibraries);kernel32.lib;user32.lib</IgnoreSpecificDefaultLibraries>
     </Link>
     <MessageCompile>
