@@ -2,6 +2,7 @@
 
 using Nefarius.DsHidMini.ControlApp.Models;
 using Nefarius.DsHidMini.ControlApp.Models.DshmConfigManager;
+using Nefarius.DsHidMini.ControlApp.Services;
 
 using Wpf.Ui.Abstractions.Controls;
 using Wpf.Ui.Appearance;
@@ -10,6 +11,7 @@ namespace Nefarius.DsHidMini.ControlApp.ViewModels.Pages;
 
 public partial class SettingsViewModel : ObservableObject, INavigationAware
 {
+    private readonly AppSnackbarMessagesService _appSnackbarMessagesService;
     private readonly DshmConfigManager _dshmConfigManager;
 
     [ObservableProperty]
@@ -20,10 +22,17 @@ public partial class SettingsViewModel : ObservableObject, INavigationAware
 
     private bool _isInitialized;
 
-    public SettingsViewModel(DshmConfigManager dshmConfigManager)
+    public SettingsViewModel(
+        DshmConfigManager dshmConfigManager,
+        BthPS3StatusService bthPs3,
+        AppSnackbarMessagesService appSnackbarMessagesService)
     {
         _dshmConfigManager = dshmConfigManager;
+        BthPs3 = bthPs3;
+        _appSnackbarMessagesService = appSnackbarMessagesService;
     }
+
+    public BthPS3StatusService BthPs3 { get; }
 
     /// <summary>
     ///     When enabled (default), the driver requests a self restart on a HID mode mismatch instead of requiring a
@@ -84,6 +93,8 @@ public partial class SettingsViewModel : ObservableObject, INavigationAware
             InitializeViewModel();
         }
 
+        BthPs3.Refresh();
+
         return Task.CompletedTask;
     }
 
@@ -132,6 +143,25 @@ public partial class SettingsViewModel : ObservableObject, INavigationAware
                 CurrentTheme = ApplicationTheme.Dark;
 
                 break;
+        }
+    }
+
+    [RelayCommand]
+    private void RefreshBthPs3()
+    {
+        BthPs3.Refresh();
+    }
+
+    [RelayCommand]
+    private void RectifyBthPs3Settings()
+    {
+        if (BthPs3.TryRectifySettings())
+        {
+            _appSnackbarMessagesService.ShowBthPS3SettingsRectifiedMessage();
+        }
+        else
+        {
+            _appSnackbarMessagesService.ShowBthPS3SettingsRectifyFailedMessage();
         }
     }
 }

@@ -20,7 +20,24 @@
     <Page.Resources>
         <DataTemplate x:Key="MyKey_DeviceStatusSummary" DataType="{x:Type viewuserctrls:DeviceUserControl}" />
     </Page.Resources>
-    <Grid VerticalAlignment="Stretch">
+    <DockPanel>
+        <StackPanel
+            Margin="0,0,0,8"
+            DockPanel.Dock="Top"
+            Visibility="{Binding ViewModel.BthPs3.HasProblem, Converter={StaticResource BoolToVis_TV_FC}}">
+            <ui:InfoBar
+                Title="{Binding ViewModel.BthPs3.StatusTitle}"
+                IsClosable="False"
+                IsOpen="True"
+                Message="{Binding ViewModel.BthPs3.StatusMessage}"
+                Severity="{Binding ViewModel.BthPs3.Severity}" />
+            <ui:Button
+                Margin="0,4,0,0"
+                HorizontalAlignment="Left"
+                Command="{Binding ViewModel.GoToBthPs3SettingsCommand}"
+                Content="Details" />
+        </StackPanel>
+        <Grid VerticalAlignment="Stretch">
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="250" />
             <ColumnDefinition Width="*" />
@@ -200,4 +217,5 @@
 
 
     </Grid>
+    </DockPanel>
 </Page>

@@ -90,6 +90,28 @@ public class AppSnackbarMessagesService
         );
     }
 
+    public void ShowBthPS3SettingsRectifiedMessage()
+    {
+        _snackbarService.Show(
+            "BthPS3 settings updated",
+            "PSM patching is enabled and RAW PDO is disabled.",
+            ControlAppearance.Success,
+            new SymbolIcon(SymbolRegular.CheckmarkCircle24),
+            TimeSpan.FromSeconds(3)
+        );
+    }
+
+    public void ShowBthPS3SettingsRectifyFailedMessage()
+    {
+        _snackbarService.Show(
+            "Failed to update BthPS3 settings",
+            "Run as Administrator and confirm BthPS3 is installed.",
+            ControlAppearance.Danger,
+            new SymbolIcon(SymbolRegular.DismissCircle24),
+            TimeSpan.FromSeconds(5)
+        );
+    }
+
     public void ShowPowerCyclingDeviceMessage(bool isWireless, bool isAppElevated, bool reconnectionResult)
     {
         if (!isWireless && !isAppElevated)

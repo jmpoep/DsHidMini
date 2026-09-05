@@ -7,6 +7,7 @@ using Nefarius.DsHidMini.ControlApp.Models.DshmConfigManager;
 using Nefarius.DsHidMini.ControlApp.Models.Util.Web;
 using Nefarius.DsHidMini.ControlApp.Services;
 using Nefarius.DsHidMini.ControlApp.ViewModels.UserControls;
+using Nefarius.DsHidMini.ControlApp.Views.Pages;
 
 using Wpf.Ui;
 using Wpf.Ui.Abstractions.Controls;
@@ -25,6 +26,7 @@ public partial class DevicesViewModel : ObservableObject, INavigationAware
     private readonly DshmConfigManager _dshmConfigManager;
 
     private readonly DshmDevMan _dshmDevMan;
+    private readonly INavigationService _navigationService;
     private int _refreshGeneration;
 
     /// <summary>
@@ -45,7 +47,9 @@ public partial class DevicesViewModel : ObservableObject, INavigationAware
         DshmConfigManager dshmConfigManager,
         AppSnackbarMessagesService appSnackbarMessagesService,
         IContentDialogService contentDialogService,
-        AddressValidator addressValidator
+        AddressValidator addressValidator,
+        BthPS3StatusService bthPs3,
+        INavigationService navigationService
     )
     {
         _dshmDevMan = dshmDevMan;
@@ -55,8 +59,12 @@ public partial class DevicesViewModel : ObservableObject, INavigationAware
         _dshmConfigManager.DshmConfigurationUpdated += OnDshmConfigUpdated;
         _contentDialogService = contentDialogService;
         _addressValidator = addressValidator;
+        BthPs3 = bthPs3;
+        _navigationService = navigationService;
         RefreshDevicesList();
     }
+
+    public BthPS3StatusService BthPs3 { get; }
 
 
     /// <summary>
@@ -73,6 +81,7 @@ public partial class DevicesViewModel : ObservableObject, INavigationAware
     {
         Log.Logger.Debug(
             "Navigating to Devices page. Refreshing dynamic properties of each connected Device ViewModel.");
+        BthPs3.Refresh();
         foreach (DeviceViewModel device in Devices)
         {
             await device.RefreshDeviceSettings();
@@ -93,6 +102,12 @@ public partial class DevicesViewModel : ObservableObject, INavigationAware
     private void OnConnectedDevicesListUpdated(object? obj, EventArgs? eventArgs)
     {
         RefreshDevicesList();
+    }
+
+    [RelayCommand]
+    private void GoToBthPs3Settings()
+    {
+        _navigationService.Navigate(typeof(SettingsPage));
     }
 
     private void OnDshmConfigUpdated(object? obj, EventArgs? eventArgs)
@@ -195,6 +210,7 @@ public partial class DevicesViewModel : ObservableObject, INavigationAware
             int generation = Interlocked.Increment(ref _refreshGeneration);
             try
             {
+                BthPs3.Refresh();
                 string? selectedAddress = SelectedDevice?.DeviceAddress;
                 SelectedDevice = null;
                 List<DeviceViewModel> previous = Devices.ToList();
@@ -294,35 +310,7 @@ public partial class DevicesViewModel : ObservableObject, INavigationAware
         }
     }
 
-    public bool IsFilterAvailable => IsElevated && BthPS3FilterDriver.IsFilterAvailable;
-
-    public bool IsFilterUnavailable => IsElevated && !BthPS3FilterDriver.IsFilterAvailable;
-
-    public bool IsFilterEnabled
-    {
-        get => IsElevated && BthPS3FilterDriver.IsFilterEnabled;
-        set => BthPS3FilterDriver.IsFilterEnabled = value;
-    }
-
-    public bool IsRawPDODisabled => !BthPS3ProfileDriver.RawPDO;
-
-    public bool AreBthPS3SettingsCorrect =>
-        IsElevated && !BthPS3ProfileDriver.RawPDO && BthPS3FilterDriver.IsFilterEnabled;
-
-    public bool AreBthPS3SettingsIncorrect =>
-        IsElevated && (BthPS3ProfileDriver.RawPDO || !BthPS3FilterDriver.IsFilterEnabled);
-
     public bool IsPressureMutingSupported => IsEditable && SelectedDevice.IsPressureMutingSupported;
-
-    public event PropertyChangedEventHandler PropertyChanged;
-
-    public void RefreshProperties()
-    {
-        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs("IsFilterEnabled"));
-        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs("IsRawPDODisabled"));
-        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs("AreBthPS3SettingsIncorrect"));
-        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs("AreBthPS3SettingsCorrect"));
-    }
     */
 }
 
