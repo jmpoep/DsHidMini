@@ -409,14 +409,22 @@ typedef struct _IPC_HID_INPUT_REPORT_MESSAGE
 	// Input report copy
 	// 
 	DS3_RAW_INPUT_REPORT InputReport;
+
+	//
+	// Pad so each slot is a multiple of 4 and SequenceNumber stays aligned
+	// at (slot - 1) * sizeof(...) + FIELD_OFFSET(..., SequenceNumber).
+	// 
+	UCHAR AlignmentPadding[3];
 } IPC_HID_INPUT_REPORT_MESSAGE, *PIPC_HID_INPUT_REPORT_MESSAGE;
 #include <poppack.h>
 
 //
-// Packed layout: UINT32 + LONG + 49-byte DS3_RAW_INPUT_REPORT. Must stay in
-// sync with the SDK IPC_HID_INPUT_REPORT_MESSAGE mirror (Pack = 1).
+// Packed layout: UINT32 + LONG + 49-byte DS3_RAW_INPUT_REPORT + 3-byte pad.
+// Must stay in sync with the SDK IPC_HID_INPUT_REPORT_MESSAGE mirror (Pack = 1).
 // 
-C_ASSERT(sizeof(IPC_HID_INPUT_REPORT_MESSAGE) == 57);
+C_ASSERT(sizeof(IPC_HID_INPUT_REPORT_MESSAGE) == 60);
+C_ASSERT((FIELD_OFFSET(IPC_HID_INPUT_REPORT_MESSAGE, SequenceNumber) % sizeof(LONG)) == 0);
+C_ASSERT((sizeof(IPC_HID_INPUT_REPORT_MESSAGE) % sizeof(LONG)) == 0);
 
 //
 // This macro will generate an inline function called DeviceGetContext

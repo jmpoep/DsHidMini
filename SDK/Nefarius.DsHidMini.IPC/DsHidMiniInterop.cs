@@ -182,7 +182,13 @@ public sealed partial class DsHidMiniInterop : IDisposable
 
     private void RefreshDevices()
     {
-        DisposeInputReportWaitEvents();
+        Dictionary<int, string> previousIdentities = new();
+        foreach (KeyValuePair<int, PnPDevice> pair in _connectedDevices)
+        {
+            previousIdentities[pair.Key] = GetDeviceIdentity(pair.Value);
+        }
+
+        DisposeInputReportWaitHandles();
 
         _connectedDevices.Clear();
 
@@ -233,12 +239,34 @@ public sealed partial class DsHidMiniInterop : IDisposable
             usedKeys.Add(fallback);
         }
 
+        foreach (int slot in _lastSeenSequences.Keys.ToArray())
+        {
+            if (!_connectedDevices.TryGetValue(slot, out PnPDevice? device)
+                || !previousIdentities.TryGetValue(slot, out string? previous)
+                || !string.Equals(previous, GetDeviceIdentity(device), StringComparison.OrdinalIgnoreCase))
+            {
+                _lastSeenSequences.TryRemove(slot, out _);
+            }
+        }
+
         //
         // We need to let go of all shared resources or the driver won't be able to re-create the named objects
         // 
         if (_connectedDevices.Count == 0)
         {
             Dispose();
+        }
+    }
+
+    private static string GetDeviceIdentity(PnPDevice device)
+    {
+        try
+        {
+            return device.InstanceId;
+        }
+        catch (Exception)
+        {
+            return string.Empty;
         }
     }
 
@@ -284,6 +312,12 @@ public sealed partial class DsHidMiniInterop : IDisposable
 
     private void DisposeInputReportWaitEvents()
     {
+        DisposeInputReportWaitHandles();
+        _lastSeenSequences.Clear();
+    }
+
+    private void DisposeInputReportWaitHandles()
+    {
         foreach (int key in _inputReportWaitEvents.Keys.ToArray())
         {
             if (_inputReportWaitEvents.TryRemove(key, out EventWaitHandle? handle))
@@ -291,8 +325,6 @@ public sealed partial class DsHidMiniInterop : IDisposable
                 handle.Dispose();
             }
         }
-
-        _lastSeenSequences.Clear();
     }
 
     /// <summary>

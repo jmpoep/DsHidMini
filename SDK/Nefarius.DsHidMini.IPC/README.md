@@ -32,7 +32,7 @@ DsHidMini is a Windows kernel-mode driver that enables SIXAXIS/DualShock 3 (and 
 - **Shared memory** — command channel and HID input report data
 - **Named events and mutex** — request/response synchronization
 
-Use it from any .NET Standard 2.0+ Windows application (desktop, service, or tray tool) to:
+Use it from a .NET Standard 2.0 consumer or a .NET 10 Windows application (desktop, service, or tray tool) to:
 
 | Capability | Description |
 |------------|-------------|

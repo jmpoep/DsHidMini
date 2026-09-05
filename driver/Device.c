@@ -228,30 +228,31 @@ void DsHidMini_DeviceCleanup(
 		{
 			driverContext->IPC.DeviceDispatchers.Callbacks[deviceContext->SlotIndex] = NULL;
 			driverContext->IPC.DeviceDispatchers.Contexts[deviceContext->SlotIndex] = NULL;
+
+			const size_t offset = (sizeof(IPC_HID_INPUT_REPORT_MESSAGE) * (deviceContext->SlotIndex - 1));
+			const PIPC_HID_INPUT_REPORT_MESSAGE pHIDBuffer = (PIPC_HID_INPUT_REPORT_MESSAGE)(
+				driverContext->IPC.SharedRegions.HID.Buffer + offset);
+
+			//
+			// Seqlock: odd generation while the payload is cleared, then the
+			// next even generation. SequenceNumber is left intact so a later
+			// occupant of this slot continues the counter.
+			// 
+			InterlockedIncrement(&pHIDBuffer->SequenceNumber);
+			pHIDBuffer->SlotIndex = 0;
+			RtlZeroMemory(&pHIDBuffer->InputReport, sizeof(DS3_RAW_INPUT_REPORT));
+			RtlZeroMemory(pHIDBuffer->AlignmentPadding, sizeof(pHIDBuffer->AlignmentPadding));
+			InterlockedIncrement(&pHIDBuffer->SequenceNumber);
+
+			if (deviceContext->IPC.InputReportWaitHandle != NULL)
+			{
+				SetEvent(deviceContext->IPC.InputReportWaitHandle);
+				CloseHandle(deviceContext->IPC.InputReportWaitHandle);
+				deviceContext->IPC.InputReportWaitHandle = NULL;
+			}
 		}
 	}
 	WdfWaitLockRelease(driverContext->SlotsLock);
-
-	if (driverContext->IPC.IsEnabled)
-	{
-		const size_t offset = (sizeof(IPC_HID_INPUT_REPORT_MESSAGE) * (deviceContext->SlotIndex - 1));
-		const PIPC_HID_INPUT_REPORT_MESSAGE pHIDBuffer = (PIPC_HID_INPUT_REPORT_MESSAGE)(
-			driverContext->IPC.SharedRegions.HID.Buffer + offset);
-
-		//
-		// Publish an empty even-numbered generation so blocked readers wake,
-		// observe SlotIndex == 0, and return instead of waiting out a timeout.
-		// 
-		RtlZeroMemory(pHIDBuffer, sizeof(IPC_HID_INPUT_REPORT_MESSAGE));
-		InterlockedAdd(&pHIDBuffer->SequenceNumber, 2);
-
-		if (deviceContext->IPC.InputReportWaitHandle != NULL)
-		{
-			SetEvent(deviceContext->IPC.InputReportWaitHandle);
-			CloseHandle(deviceContext->IPC.InputReportWaitHandle);
-			deviceContext->IPC.InputReportWaitHandle = NULL;
-		}
-	}
 
 	EventWriteUnloadEvent(Object);
 

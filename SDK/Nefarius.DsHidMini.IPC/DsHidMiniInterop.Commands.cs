@@ -38,8 +38,8 @@ public partial class DsHidMiniInterop
     /// </exception>
     /// <returns>
     ///     TRUE if <paramref name="report" /> got filled in or FALSE if the given <paramref name="deviceIndex" /> is not
-    ///     occupied, or if <paramref name="timeout" /> is used and the named wait event for that slot does not exist (no device
-    ///     in that slot).
+    ///     occupied, if <paramref name="timeout" /> is used and the named wait event for that slot does not exist (no device
+    ///     in that slot), or if <paramref name="timeout" /> expires before a new report generation arrives.
     /// </returns>
     [SuppressMessage("ReSharper", "UnusedMember.Global")]
     public unsafe bool GetRawInputReport(int deviceIndex, ref DS3_RAW_INPUT_REPORT report, TimeSpan? timeout = null)
@@ -76,7 +76,7 @@ public partial class DsHidMiniInterop
                     && sequence != 0
                     && (!_lastSeenSequences.TryGetValue(deviceIndex, out int lastSeen) || sequence != lastSeen))
                 {
-                    break;
+                    return TryCopyRawInputReport(deviceIndex, ref message, waitBudget - waitClock.Elapsed, out report);
                 }
 
                 if (message.SlotIndex == 0)
@@ -84,10 +84,10 @@ public partial class DsHidMiniInterop
                     return false;
                 }
 
-                TimeSpan remaining = waitBudget - waitClock.Elapsed;
-                if (remaining <= TimeSpan.Zero)
+                TimeSpan waitRemaining = waitBudget - waitClock.Elapsed;
+                if (waitRemaining <= TimeSpan.Zero)
                 {
-                    break;
+                    return false;
                 }
 
                 if ((sequence & 1) == 0
@@ -96,16 +96,16 @@ public partial class DsHidMiniInterop
                 {
                     // Already consumed this generation; the manual-reset event stays
                     // signaled until the driver ResetEvent()s at the next write.
-                    Thread.Sleep((int)Math.Min(remaining.TotalMilliseconds, 1));
+                    Thread.Sleep((int)Math.Min(waitRemaining.TotalMilliseconds, 1));
                 }
                 else
                 {
-                    waitEvent.WaitOne(remaining);
+                    waitEvent.WaitOne(waitRemaining);
                 }
             }
         }
 
-        return TryCopyRawInputReport(deviceIndex, ref message, out report);
+        return TryCopyRawInputReport(deviceIndex, ref message, timeout: null, out report);
     }
 
     /// <summary>
@@ -114,11 +114,26 @@ public partial class DsHidMiniInterop
     private bool TryCopyRawInputReport(
         int deviceIndex,
         ref IPC_HID_INPUT_REPORT_MESSAGE message,
+        TimeSpan? timeout,
         out DS3_RAW_INPUT_REPORT report
     )
     {
+        Stopwatch? copyClock = timeout.HasValue ? Stopwatch.StartNew() : null;
+        TimeSpan copyBudget = timeout.GetValueOrDefault();
+        // A zero remaining budget still allows one seqlock attempt for a generation
+        // we already observed as stable before calling in.
+        bool allowOneAttempt = timeout.HasValue && copyBudget <= TimeSpan.Zero;
+
         while (true)
         {
+            if (copyClock is not null && !allowOneAttempt && copyClock.Elapsed >= copyBudget)
+            {
+                report = default;
+                return false;
+            }
+
+            allowOneAttempt = false;
+
             int first = Volatile.Read(ref message.SequenceNumber);
             if ((first & 1) != 0)
             {
@@ -308,9 +323,11 @@ public partial class DsHidMiniInterop
     ///     controller is connected and operational.
     /// </exception>
     /// <returns></returns>
+    /// <exception cref="DsHidMiniInteropInvalidDeviceIndexException">
+    ///     The <paramref name="deviceIndex" /> was outside the valid range 1..255.
+    /// </exception>
     /// <exception cref="ArgumentOutOfRangeException">
-    ///     The <paramref name="deviceIndex" /> or <paramref name="playerIndex" />
-    ///     were out of range.
+    ///     The <paramref name="playerIndex" /> was outside the valid range 1..7.
     /// </exception>
     /// <exception cref="DsHidMiniInteropConcurrencyException">A different thread is currently performing a data exchange.</exception>
     /// <exception cref="DsHidMiniInteropReplyTimeoutException">The driver didn't respond within an expected period.</exception>

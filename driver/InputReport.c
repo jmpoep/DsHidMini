@@ -26,8 +26,8 @@ DSHM_ParseInputReport(
 		 * Offset calculation puts each devices' input report copy
 		 * in their respective position in the memory region, like:
 		 *   1st device: (sizeof(IPC_HID_INPUT_REPORT_MESSAGE) * 0) = 0
-		 *   2nd device: (sizeof(IPC_HID_INPUT_REPORT_MESSAGE) * 1) = 57
-		 *   3rd device: (sizeof(IPC_HID_INPUT_REPORT_MESSAGE) * 2) = 114
+		 *   2nd device: (sizeof(IPC_HID_INPUT_REPORT_MESSAGE) * 1) = 60
+		 *   3rd device: (sizeof(IPC_HID_INPUT_REPORT_MESSAGE) * 2) = 120
 		 * and so on
 		 */
 		const size_t offset = (sizeof(IPC_HID_INPUT_REPORT_MESSAGE) * (DeviceContext->SlotIndex - 1));

@@ -64,7 +64,7 @@ public bool GetRawInputReport(int deviceIndex, ref DS3_RAW_INPUT_REPORT report, 
 `deviceIndex` [Int32](https://learn.microsoft.com/dotnet/api/system.int32)<br>
 The one-based device index.
 
-`report` [DS3_RAW_INPUT_REPORT&](./nefarius.dshidmini.ipc.models.public.ds3_raw_input_report&.md)<br>
+`report` [DS3_RAW_INPUT_REPORT](./nefarius.dshidmini.ipc.models.public.ds3_raw_input_report.md)<br>
 The [DS3_RAW_INPUT_REPORT](./nefarius.dshidmini.ipc.models.public.ds3_raw_input_report.md) to populate.
 
 `timeout` [Nullable](https://learn.microsoft.com/dotnet/api/system.nullable-1)<[TimeSpan](https://learn.microsoft.com/dotnet/api/system.timespan)><br>
@@ -73,8 +73,8 @@ Optional timeout to wait for a report update to arrive. Default invocation retur
 #### Returns
 
 TRUE if `report` got filled in or FALSE if the given `deviceIndex` is not
- occupied, or if `timeout` is used and the named wait event for that slot does not exist (no device
- in that slot).
+ occupied, if `timeout` is used and the named wait event for that slot does not exist (no device
+ in that slot), or if `timeout` expires before a new report generation arrives.
 
 #### Exceptions
 
@@ -201,9 +201,11 @@ The player index to set to. Valid values include 1 to 7.
 Driver IPC unavailable, make sure that at least one compatible
  controller is connected and operational.
 
+[DsHidMiniInteropInvalidDeviceIndexException](./nefarius.dshidmini.ipc.exceptions.dshidminiinteropinvaliddeviceindexexception.md)<br>
+The `deviceIndex` was outside the valid range 1..255.
+
 [ArgumentOutOfRangeException](https://learn.microsoft.com/dotnet/api/system.argumentoutofrangeexception)<br>
-The `deviceIndex` or `playerIndex`
- were out of range.
+The `playerIndex` was outside the valid range 1..7.
 
 [DsHidMiniInteropConcurrencyException](./nefarius.dshidmini.ipc.exceptions.dshidminiinteropconcurrencyexception.md)<br>
 A different thread is currently performing a data exchange.

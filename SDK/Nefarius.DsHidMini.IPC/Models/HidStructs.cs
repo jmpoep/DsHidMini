@@ -27,4 +27,13 @@ internal struct IPC_HID_INPUT_REPORT_MESSAGE
     ///     The <see cref="DS3_RAW_INPUT_REPORT" /> coming directly from the device with no transformations applied.
     /// </summary>
     public DS3_RAW_INPUT_REPORT InputReport;
+
+    /// <summary>
+    ///     Pad so each slot is 60 bytes and <see cref="SequenceNumber" /> stays 4-byte aligned for every device index.
+    /// </summary>
+    public byte AlignmentPadding0;
+
+    public byte AlignmentPadding1;
+
+    public byte AlignmentPadding2;
 }
