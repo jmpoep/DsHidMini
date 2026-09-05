@@ -1,9 +1,10 @@
-﻿using Nefarius.DsHidMini.ControlApp.Models.DshmConfigManager;
+﻿using Nefarius.DsHidMini.ControlApp.Helpers;
+using Nefarius.DsHidMini.ControlApp.Models.DshmConfigManager;
 using Nefarius.DsHidMini.ControlApp.Services;
 
 namespace Nefarius.DsHidMini.ControlApp.ViewModels.UserControls;
 
-public partial class ProfileViewModel : ObservableObject
+public partial class ProfileViewModel : ObservableObject, IListReorderable
 {
     private readonly AppSnackbarMessagesService _appSnackbarMessagesService;
     private readonly DshmConfigManager _dshmConfigManager;
@@ -28,6 +29,8 @@ public partial class ProfileViewModel : ObservableObject
     }
 
     public ProfileData ProfileData { get; }
+
+    public bool CanReorder => ProfileData != ProfileData.DefaultProfile;
 
     public bool IsEditEnabled
     {

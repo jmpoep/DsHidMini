@@ -225,6 +225,41 @@ public class DshmConfigManager
         FixDevicesWithBlankProfiles();
     }
 
+    /// <summary>
+    ///     Moves a user profile to <paramref name="targetIndex" /> in the user-profile list (Default excluded).
+    /// </summary>
+    /// <returns>
+    ///     <see langword="true" /> if the list changed; otherwise <see langword="false" />.
+    /// </returns>
+    public bool MoveUserProfile(ProfileData profile, int targetIndex)
+    {
+        if (profile == ProfileData.DefaultProfile || profile.ProfileGuid == ProfileData.DefaultGuid)
+        {
+            Log.Logger.Debug("Default profile cannot be reordered.");
+            return false;
+        }
+
+        int currentIndex = _userData.Profiles.FindIndex(existing => existing.ProfileGuid == profile.ProfileGuid);
+        if (currentIndex < 0)
+        {
+            Log.Logger.Debug("Profile '{ProfileGuid}' is not in the user profile list.", profile.ProfileGuid);
+            return false;
+        }
+
+        if (targetIndex < 0 || targetIndex >= _userData.Profiles.Count || targetIndex == currentIndex)
+        {
+            return false;
+        }
+
+        ProfileData item = _userData.Profiles[currentIndex];
+        _userData.Profiles.RemoveAt(currentIndex);
+        _userData.Profiles.Insert(targetIndex, item);
+        Log.Logger.Information(
+            "Moved profile '{ProfileName}' ({ProfileGuid}) from {FromIndex} to {ToIndex}.",
+            item.ProfileName, item.ProfileGuid, currentIndex, targetIndex);
+        return true;
+    }
+
     public SettingsContext GetDeviceExpectedHidMode(DeviceData dev) =>
         ResolveEffectiveSettings(dev).HidMode.SettingsContext;
 

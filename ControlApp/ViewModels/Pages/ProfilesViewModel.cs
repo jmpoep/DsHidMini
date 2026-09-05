@@ -1,4 +1,5 @@
-﻿using Nefarius.DsHidMini.ControlApp.Models;
+﻿using Nefarius.DsHidMini.ControlApp.Helpers;
+using Nefarius.DsHidMini.ControlApp.Models;
 using Nefarius.DsHidMini.ControlApp.Models.DshmConfigManager;
 using Nefarius.DsHidMini.ControlApp.Services;
 using Nefarius.DsHidMini.ControlApp.ViewModels.UserControls;
@@ -66,6 +67,8 @@ public partial class ProfilesViewModel : ObservableObject, INavigationAware
 
     private void UpdateProfileList()
     {
+        Guid? selectedGuid = SelectedProfileVM?.ProfileData.ProfileGuid;
+
         Log.Logger.Debug("Rebuilding profiles' ViewModels.");
         List<ProfileViewModel> newList = new();
         foreach (ProfileData prof in ProfilesDatas)
@@ -75,6 +78,11 @@ public partial class ProfilesViewModel : ObservableObject, INavigationAware
 
         ProfilesViewModels = newList;
         UpdateGlobalProfileCheck();
+
+        if (selectedGuid is Guid guid)
+        {
+            SelectedProfileVM = ProfilesViewModels.FirstOrDefault(vm => vm.ProfileData.ProfileGuid == guid);
+        }
     }
 
     private void UpdateGlobalProfileCheck()
@@ -153,6 +161,24 @@ public partial class ProfilesViewModel : ObservableObject, INavigationAware
         {
             _appSnackbarMessagesService.ShowDsHidMiniConfigurationUpdateFailedMessage();
         }
+        UpdateProfileList();
+    }
+
+    [RelayCommand]
+    private void ReorderProfile(ListViewReorderRequest? request)
+    {
+        if (request?.Item is not ProfileViewModel profileVm || !profileVm.CanReorder)
+        {
+            return;
+        }
+
+        int userIndex = request.NewIndex - 1;
+        if (!_dshmConfigManager.MoveUserProfile(profileVm.ProfileData, userIndex))
+        {
+            return;
+        }
+
+        _dshmConfigManager.SaveChanges();
         UpdateProfileList();
     }
 }
