@@ -1,6 +1,6 @@
-# <img src="../../assets/FireShock.png" align="left" /> Nefarius.DsHidMini.IPC
+# <img src="https://raw.githubusercontent.com/nefarius/DsHidMini/master/assets/FireShock.png" align="left" /> Nefarius.DsHidMini.IPC
 
-![Requirements](https://img.shields.io/badge/Requires-.NET%208.0-blue.svg)
+![Requirements](https://img.shields.io/badge/Requires-.NET%20Standard%202.0%2B-blue.svg)
 [![NuGet Version](https://img.shields.io/nuget/v/Nefarius.DsHidMini.IPC)](https://www.nuget.org/packages/Nefarius.DsHidMini.IPC/)
 [![NuGet](https://img.shields.io/nuget/dt/Nefarius.DsHidMini.IPC)](https://www.nuget.org/packages/Nefarius.DsHidMini.IPC/)
 
@@ -32,7 +32,7 @@ DsHidMini is a Windows kernel-mode driver that enables SIXAXIS/DualShock 3 (and 
 - **Shared memory** — command channel and HID input report data
 - **Named events and mutex** — request/response synchronization
 
-Use it from any .NET 8 Windows application (desktop, service, or tray tool) to:
+Use it from a .NET Standard 2.0 consumer or a .NET 10 Windows application (desktop, service, or tray tool) to:
 
 | Capability | Description |
 |------------|-------------|
@@ -49,7 +49,7 @@ The SDK handles reconnection when the last device disconnects and the next one a
 
 | Requirement | Details |
 |-------------|---------|
-| **.NET** | .NET 8.0 (Windows-specific: `net8.0-windows`) |
+| **.NET** | .NET Standard 2.0 or newer (covers .NET Framework 4.6.2+ and all modern .NET). An explicit `net10.0-windows` build is also shipped. Windows-only at runtime. |
 | **OS** | Windows (named kernel objects and shared memory are Windows-only) |
 | **Driver** | DsHidMini driver installed; at least one compatible controller connected and bound to the driver |
 | **Elevation** | Not required for normal use. IPC uses named objects (mutex, events, shared memory, and per-device HID wait events) with DACLs that allow authenticated users, including event-based `GetRawInputReport`. |
@@ -117,7 +117,7 @@ if (gotReport)
 | **`DsHidMiniInterop()`** | Connects to the driver IPC. Throws if not available. Subscribes to device arrival/removal for reconnection. |
 | **`void Dispose()`** | Releases mapped views, file mapping, and events. Implement `IDisposable` and dispose when done. |
 | **`void Reconnect()`** | Re-opens mutex, events, and shared memory (e.g. after all devices were removed). Throws if still no device. |
-| **`bool GetRawInputReport(int deviceIndex, ref DS3_RAW_INPUT_REPORT report, TimeSpan? timeout)`** | Fills `report` with the last or next raw HID report. Use `timeout: null` for immediate read; use e.g. `TimeSpan.FromMilliseconds(20)` for event-based waiting on the driver’s named per-slot event (`Global\DsHidMiniHidReportEvent` + index). Returns `false` if the slot is empty, or if a timeout was requested and no wait object exists for that slot (nothing connected there). |
+| **`bool GetRawInputReport(int deviceIndex, ref DS3_RAW_INPUT_REPORT report, TimeSpan? timeout)`** | Fills `report` with the last or next raw HID report. Use `timeout: null` for immediate read; use e.g. `TimeSpan.FromMilliseconds(20)` for event-based waiting on the driver’s named per-slot manual-reset event (`Global\DsHidMiniHidReportEvent` + index). Multiple clients can wait on the same slot. Returns `false` if the slot is empty, or if a timeout was requested and no wait object exists for that slot (nothing connected there). |
 | **`void SendPing()`** | Sends a ping to the driver and waits for a reply (liveness check). |
 | **`SetHostResult SetHostAddress(int deviceIndex, PhysicalAddress hostAddress)`** | Writes the new Bluetooth host address (pairing). Returns write/read NTSTATUS in `SetHostResult`. |
 | **`uint SetPlayerIndex(int deviceIndex, byte playerIndex)`** | Sets the player LED index (1–7). Returns NTSTATUS. |
@@ -169,7 +169,6 @@ The SDK uses dedicated exception types so you can handle driver and usage errors
 | **`DsHidMiniInteropInvalidDeviceIndexException`** | `deviceIndex` not in 1…255. |
 | **`DsHidMiniInteropReplyTimeoutException`** | Driver did not respond within the expected time (e.g. ping or command). |
 | **`DsHidMiniInteropConcurrencyException`** | Another thread is already performing an IPC call; only one at a time is allowed. |
-| **`DsHidMiniInteropAccessDeniedException`** | Reserved; not thrown by the current SDK. |
 | **`DsHidMiniInteropUnexpectedReplyException`** | Driver replied with an unexpected or malformed message. |
 
 Other failures may surface as `Win32Exception` where low-level Win32 calls apply.
@@ -187,7 +186,7 @@ Other failures may surface as `Win32Exception` where low-level Win32 calls apply
 
 Full API reference (generated from XML docs):
 
-**[API documentation](docs/index.md)**
+**[API documentation](https://github.com/nefarius/DsHidMini/blob/master/SDK/Nefarius.DsHidMini.IPC/docs/index.md)**
 
 Includes:
 
@@ -205,7 +204,7 @@ To regenerate the `docs/` markdown from the built assembly:
 ```bash
 dotnet build -c Release
 dotnet tool install -g Nefarius.Tools.XMLDoc2Markdown
-xmldoc2md .\bin\Release\net8.0-windows\Nefarius.DsHidMini.IPC.dll .\docs\
+xmldoc2md .\bin\Release\net10.0-windows\Nefarius.DsHidMini.IPC.dll .\docs\
 ```
 
 Build first so the DLL and XML are up to date; then run `xmldoc2md` against the DLL and output folder above.

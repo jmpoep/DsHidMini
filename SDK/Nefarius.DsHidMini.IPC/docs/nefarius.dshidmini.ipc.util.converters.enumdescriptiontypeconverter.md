@@ -6,7 +6,8 @@ Namespace: Nefarius.DsHidMini.IPC.Util.Converters
 public class EnumDescriptionTypeConverter : System.ComponentModel.EnumConverter
 ```
 
-Inheritance [Object](https://docs.microsoft.com/en-us/dotnet/api/system.object) → TypeConverter → EnumConverter → [EnumDescriptionTypeConverter](./nefarius.dshidmini.ipc.util.converters.enumdescriptiontypeconverter.md)
+Inheritance [Object](https://learn.microsoft.com/dotnet/api/system.object) → [TypeConverter](https://learn.microsoft.com/dotnet/api/system.componentmodel.typeconverter) → [EnumConverter](https://learn.microsoft.com/dotnet/api/system.componentmodel.enumconverter) → [EnumDescriptionTypeConverter](./nefarius.dshidmini.ipc.util.converters.enumdescriptiontypeconverter.md)<br>
+Attributes [NullableContextAttribute](https://learn.microsoft.com/dotnet/api/system.runtime.compilerservices.nullablecontextattribute), [NullableAttribute](https://learn.microsoft.com/dotnet/api/system.runtime.compilerservices.nullableattribute)
 
 ## Constructors
 
@@ -18,7 +19,7 @@ public EnumDescriptionTypeConverter(Type type)
 
 #### Parameters
 
-`type` [Type](https://docs.microsoft.com/en-us/dotnet/api/system.type)<br>
+`type` [Type](https://learn.microsoft.com/dotnet/api/system.type)<br>
 
 ## Methods
 
@@ -30,14 +31,14 @@ public object ConvertTo(ITypeDescriptorContext context, CultureInfo culture, obj
 
 #### Parameters
 
-`context` ITypeDescriptorContext<br>
+`context` [ITypeDescriptorContext](https://learn.microsoft.com/dotnet/api/system.componentmodel.itypedescriptorcontext)<br>
 
-`culture` [CultureInfo](https://docs.microsoft.com/en-us/dotnet/api/system.globalization.cultureinfo)<br>
+`culture` [CultureInfo](https://learn.microsoft.com/dotnet/api/system.globalization.cultureinfo)<br>
 
-`value` [Object](https://docs.microsoft.com/en-us/dotnet/api/system.object)<br>
+`value` [Object](https://learn.microsoft.com/dotnet/api/system.object)<br>
 
-`destinationType` [Type](https://docs.microsoft.com/en-us/dotnet/api/system.type)<br>
+`destinationType` [Type](https://learn.microsoft.com/dotnet/api/system.type)<br>
 
 #### Returns
 
-[Object](https://docs.microsoft.com/en-us/dotnet/api/system.object)
+[Object](https://learn.microsoft.com/dotnet/api/system.object)

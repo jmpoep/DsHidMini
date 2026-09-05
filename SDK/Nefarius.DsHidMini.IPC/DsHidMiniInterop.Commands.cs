@@ -1,4 +1,5 @@
 using System.ComponentModel;
+using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Net.NetworkInformation;
 using System.Runtime.CompilerServices;
@@ -22,8 +23,9 @@ public partial class DsHidMiniInterop
     ///     only return when the driver signaled that new data is available, otherwise you will just burn through CPU for no
     ///     good reason. A new input report is typically available each average 5 milliseconds, depending on the connection
     ///     (wired or wireless) so a timeout of 20 milliseconds should be a good recommendation.
-    ///     When <paramref name="timeout" /> is set, the implementation waits on the driver's per-slot named auto-reset event
-    ///     (same DACL as other IPC objects); it does not require administrator elevation.
+    ///     When <paramref name="timeout" /> is set, the implementation waits on the driver's per-slot named manual-reset event
+    ///     (same DACL as other IPC objects); it does not require administrator elevation. Multiple clients can wait on the
+    ///     same slot without splitting wakeups.
     /// </remarks>
     /// <param name="deviceIndex">The one-based device index.</param>
     /// <param name="report">The <see cref="DS3_RAW_INPUT_REPORT" /> to populate.</param>
@@ -36,8 +38,8 @@ public partial class DsHidMiniInterop
     /// </exception>
     /// <returns>
     ///     TRUE if <paramref name="report" /> got filled in or FALSE if the given <paramref name="deviceIndex" /> is not
-    ///     occupied, or if <paramref name="timeout" /> is used and the named wait event for that slot does not exist (no device
-    ///     in that slot).
+    ///     occupied, if <paramref name="timeout" /> is used and the named wait event for that slot does not exist (no device
+    ///     in that slot), or if <paramref name="timeout" /> expires before a new report generation arrives.
     /// </returns>
     [SuppressMessage("ReSharper", "UnusedMember.Global")]
     public unsafe bool GetRawInputReport(int deviceIndex, ref DS3_RAW_INPUT_REPORT report, TimeSpan? timeout = null)
@@ -55,35 +57,118 @@ public partial class DsHidMiniInterop
 
         if (timeout.HasValue)
         {
+            EventWaitHandle waitEvent;
             try
             {
-                GetOrOpenHidReportWaitEvent(deviceIndex).WaitOne(timeout.Value);
+                waitEvent = GetOrOpenHidReportWaitEvent(deviceIndex);
             }
             catch (WaitHandleCannotBeOpenedException)
             {
                 return false;
             }
+
+            Stopwatch waitClock = Stopwatch.StartNew();
+            TimeSpan waitBudget = timeout.Value < TimeSpan.Zero ? TimeSpan.Zero : timeout.Value;
+            while (true)
+            {
+                int sequence = Volatile.Read(ref message.SequenceNumber);
+                if ((sequence & 1) == 0
+                    && sequence != 0
+                    && (!_lastSeenSequences.TryGetValue(deviceIndex, out int lastSeen) || sequence != lastSeen))
+                {
+                    return TryCopyRawInputReport(deviceIndex, ref message, waitBudget - waitClock.Elapsed, out report);
+                }
+
+                if (message.SlotIndex == 0)
+                {
+                    return false;
+                }
+
+                TimeSpan waitRemaining = waitBudget - waitClock.Elapsed;
+                if (waitRemaining <= TimeSpan.Zero)
+                {
+                    return false;
+                }
+
+                if ((sequence & 1) == 0
+                    && _lastSeenSequences.TryGetValue(deviceIndex, out lastSeen)
+                    && sequence == lastSeen)
+                {
+                    // Already consumed this generation; the manual-reset event stays
+                    // signaled until the driver ResetEvent()s at the next write.
+                    Thread.Sleep((int)Math.Min(waitRemaining.TotalMilliseconds, 1));
+                }
+                else
+                {
+                    waitEvent.WaitOne(waitRemaining);
+                }
+            }
         }
 
-        //
-        // Device is/got disconnected
-        // 
-        if (message.SlotIndex == 0)
+        return TryCopyRawInputReport(deviceIndex, ref message, timeout: null, out report);
+    }
+
+    /// <summary>
+    ///     Copies a stable HID slot snapshot using the driver seqlock.
+    /// </summary>
+    private bool TryCopyRawInputReport(
+        int deviceIndex,
+        ref IPC_HID_INPUT_REPORT_MESSAGE message,
+        TimeSpan? timeout,
+        out DS3_RAW_INPUT_REPORT report
+    )
+    {
+        Stopwatch? copyClock = timeout.HasValue ? Stopwatch.StartNew() : null;
+        TimeSpan copyBudget = timeout.GetValueOrDefault();
+        // A zero remaining budget still allows one seqlock attempt for a generation
+        // we already observed as stable before calling in.
+        bool allowOneAttempt = timeout.HasValue && copyBudget <= TimeSpan.Zero;
+
+        while (true)
         {
-            return false;
+            if (copyClock is not null && !allowOneAttempt && copyClock.Elapsed >= copyBudget)
+            {
+                report = default;
+                return false;
+            }
+
+            allowOneAttempt = false;
+
+            int first = Volatile.Read(ref message.SequenceNumber);
+            if ((first & 1) != 0)
+            {
+                Thread.Yield();
+                continue;
+            }
+
+            //
+            // Device is/got disconnected
+            // 
+            if (message.SlotIndex == 0)
+            {
+                report = default;
+                return false;
+            }
+
+            //
+            // Index mismatch is not supposed to happen
+            // 
+            if (message.SlotIndex != deviceIndex)
+            {
+                throw new DsHidMiniInteropUnexpectedReplyException();
+            }
+
+            DS3_RAW_INPUT_REPORT copy = message.InputReport;
+            int second = Volatile.Read(ref message.SequenceNumber);
+            if (first != second)
+            {
+                continue;
+            }
+
+            report = copy;
+            _lastSeenSequences[deviceIndex] = first;
+            return true;
         }
-
-        //
-        // Index mismatch is not supposed to happen
-        // 
-        if (message.SlotIndex != deviceIndex)
-        {
-            throw new DsHidMiniInteropUnexpectedReplyException();
-        }
-
-        report = message.InputReport;
-
-        return true;
     }
 
     /// <summary>
@@ -238,9 +323,11 @@ public partial class DsHidMiniInterop
     ///     controller is connected and operational.
     /// </exception>
     /// <returns></returns>
+    /// <exception cref="DsHidMiniInteropInvalidDeviceIndexException">
+    ///     The <paramref name="deviceIndex" /> was outside the valid range 1..255.
+    /// </exception>
     /// <exception cref="ArgumentOutOfRangeException">
-    ///     The <paramref name="deviceIndex" /> or <paramref name="playerIndex" />
-    ///     were out of range.
+    ///     The <paramref name="playerIndex" /> was outside the valid range 1..7.
     /// </exception>
     /// <exception cref="DsHidMiniInteropConcurrencyException">A different thread is currently performing a data exchange.</exception>
     /// <exception cref="DsHidMiniInteropReplyTimeoutException">The driver didn't respond within an expected period.</exception>

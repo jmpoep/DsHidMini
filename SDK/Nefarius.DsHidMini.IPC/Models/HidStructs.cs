@@ -8,7 +8,7 @@ namespace Nefarius.DsHidMini.IPC.Models;
 /// <summary>
 ///     Represents the most current raw DS3 HID input report.
 /// </summary>
-[StructLayout(LayoutKind.Sequential)]
+[StructLayout(LayoutKind.Sequential, Pack = 1)]
 [SuppressMessage("ReSharper", "InconsistentNaming")]
 internal struct IPC_HID_INPUT_REPORT_MESSAGE
 {
@@ -18,7 +18,22 @@ internal struct IPC_HID_INPUT_REPORT_MESSAGE
     public UInt32 SlotIndex;
 
     /// <summary>
+    ///     Seqlock: odd means a write is in progress, even means a stable snapshot.
+    ///     Must stay in sync with the driver <c>IPC_HID_INPUT_REPORT_MESSAGE</c>.
+    /// </summary>
+    public Int32 SequenceNumber;
+
+    /// <summary>
     ///     The <see cref="DS3_RAW_INPUT_REPORT" /> coming directly from the device with no transformations applied.
     /// </summary>
     public DS3_RAW_INPUT_REPORT InputReport;
+
+    /// <summary>
+    ///     Pad so each slot is 60 bytes and <see cref="SequenceNumber" /> stays 4-byte aligned for every device index.
+    /// </summary>
+    public byte AlignmentPadding0;
+
+    public byte AlignmentPadding1;
+
+    public byte AlignmentPadding2;
 }

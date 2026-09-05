@@ -45,6 +45,7 @@ public sealed partial class DsHidMiniInterop : IDisposable
     private MEMORY_MAPPED_VIEW_ADDRESS? _hidView;
 
     private readonly ConcurrentDictionary<int, EventWaitHandle> _inputReportWaitEvents = new();
+    private readonly ConcurrentDictionary<int, int> _lastSeenSequences = new();
 
     private EventWaitHandle? _readEvent;
     private EventWaitHandle? _writeEvent;
@@ -151,7 +152,7 @@ public sealed partial class DsHidMiniInterop : IDisposable
                 systemInfo.dwAllocationGranularity
             );
 
-            if (_cmdView.Value == 0)
+            if (IsNullMappedView(_cmdView))
             {
                 throw new Win32Exception(Marshal.GetLastWin32Error(), "Failed to access command view");
             }
@@ -168,7 +169,7 @@ public sealed partial class DsHidMiniInterop : IDisposable
                 (uint)(systemInfo.dwAllocationGranularity + offsetWithinPage)
             );
 
-            if (_hidView.Value == 0)
+            if (IsNullMappedView(_hidView))
             {
                 throw new Win32Exception(Marshal.GetLastWin32Error(), "Failed to access HID view");
             }
@@ -181,7 +182,13 @@ public sealed partial class DsHidMiniInterop : IDisposable
 
     private void RefreshDevices()
     {
-        DisposeInputReportWaitEvents();
+        Dictionary<int, string> previousIdentities = new();
+        foreach (KeyValuePair<int, PnPDevice> pair in _connectedDevices)
+        {
+            previousIdentities[pair.Key] = GetDeviceIdentity(pair.Value);
+        }
+
+        DisposeInputReportWaitHandles();
 
         _connectedDevices.Clear();
 
@@ -232,12 +239,34 @@ public sealed partial class DsHidMiniInterop : IDisposable
             usedKeys.Add(fallback);
         }
 
+        foreach (int slot in _lastSeenSequences.Keys.ToArray())
+        {
+            if (!_connectedDevices.TryGetValue(slot, out PnPDevice? device)
+                || !previousIdentities.TryGetValue(slot, out string? previous)
+                || !string.Equals(previous, GetDeviceIdentity(device), StringComparison.OrdinalIgnoreCase))
+            {
+                _lastSeenSequences.TryRemove(slot, out _);
+            }
+        }
+
         //
         // We need to let go of all shared resources or the driver won't be able to re-create the named objects
         // 
         if (_connectedDevices.Count == 0)
         {
             Dispose();
+        }
+    }
+
+    private static string GetDeviceIdentity(PnPDevice device)
+    {
+        try
+        {
+            return device.InstanceId;
+        }
+        catch (Exception)
+        {
+            return string.Empty;
         }
     }
 
@@ -283,6 +312,12 @@ public sealed partial class DsHidMiniInterop : IDisposable
 
     private void DisposeInputReportWaitEvents()
     {
+        DisposeInputReportWaitHandles();
+        _lastSeenSequences.Clear();
+    }
+
+    private void DisposeInputReportWaitHandles()
+    {
         foreach (int key in _inputReportWaitEvents.Keys.ToArray())
         {
             if (_inputReportWaitEvents.TryRemove(key, out EventWaitHandle? handle))
@@ -293,7 +328,7 @@ public sealed partial class DsHidMiniInterop : IDisposable
     }
 
     /// <summary>
-    ///     Returns a cached handle to the driver's named auto-reset event for the given one-based device slot (created with
+    ///     Returns a cached handle to the driver's named manual-reset event for the given one-based device slot (created with
     ///     DACL allowing authenticated users).
     /// </summary>
     /// <remarks>
@@ -325,6 +360,11 @@ public sealed partial class DsHidMiniInterop : IDisposable
         opened.Dispose();
 
         return _inputReportWaitEvents[deviceIndex];
+    }
+
+    private static bool IsNullMappedView(MEMORY_MAPPED_VIEW_ADDRESS? view)
+    {
+        return view is not { } mapped || mapped.Equals(default(MEMORY_MAPPED_VIEW_ADDRESS));
     }
 
     private void AcquireCommandLock()

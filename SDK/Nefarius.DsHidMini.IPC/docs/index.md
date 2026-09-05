@@ -26,9 +26,11 @@
 
 ## Namespace Nefarius.DsHidMini.IPC.Models.Public
 
-- [Ds3RawInputReport](./nefarius.dshidmini.ipc.models.public.ds3rawinputreport.md)
+- [DS3_RAW_INPUT_REPORT](./nefarius.dshidmini.ipc.models.public.ds3_raw_input_report.md)
 
 - [SetHostResult](./nefarius.dshidmini.ipc.models.public.sethostresult.md)
+
+- [WDF_USB_CONTROL_SETUP_PACKET](./nefarius.dshidmini.ipc.models.public.wdf_usb_control_setup_packet.md)
 
 ## Namespace Nefarius.DsHidMini.IPC.Util.Converters
 

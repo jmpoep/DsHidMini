@@ -5,7 +5,7 @@
 #define DSHM_IPC_READ_EVENT_NAME	"Global\\DsHidMiniReadEvent"
 #define DSHM_IPC_WRITE_EVENT_NAME	"Global\\DsHidMiniWriteEvent"
 //
-// Per-device auto-reset event: Global\DsHidMiniHidReportEvent{1-based slot index}
+// Per-device manual-reset event: Global\DsHidMiniHidReportEvent{1-based slot index}
 // Must stay in sync with SDK DsHidMiniInterop.HidReportWaitEventNamePrefix
 // 
 #define DSHM_IPC_HID_REPORT_EVENT_PREFIX	"Global\\DsHidMiniHidReportEvent"

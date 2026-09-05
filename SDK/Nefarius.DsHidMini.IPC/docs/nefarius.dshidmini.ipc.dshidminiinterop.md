@@ -8,8 +8,9 @@ Connects to the drivers shared memory region and offers utility methods for data
 public sealed class DsHidMiniInterop : System.IDisposable
 ```
 
-Inheritance [Object](https://docs.microsoft.com/en-us/dotnet/api/system.object) → [DsHidMiniInterop](./nefarius.dshidmini.ipc.dshidminiinterop.md)<br>
-Implements [IDisposable](https://docs.microsoft.com/en-us/dotnet/api/system.idisposable)
+Inheritance [Object](https://learn.microsoft.com/dotnet/api/system.object) → [DsHidMiniInterop](./nefarius.dshidmini.ipc.dshidminiinterop.md)<br>
+Implements [IDisposable](https://learn.microsoft.com/dotnet/api/system.idisposable)<br>
+Attributes [NullableContextAttribute](https://learn.microsoft.com/dotnet/api/system.runtime.compilerservices.nullablecontextattribute), [NullableAttribute](https://learn.microsoft.com/dotnet/api/system.runtime.compilerservices.nullableattribute)
 
 ## Properties
 
@@ -23,7 +24,7 @@ public static bool IsAvailable { get; }
 
 #### Property Value
 
-[Boolean](https://docs.microsoft.com/en-us/dotnet/api/system.boolean)<br>
+[Boolean](https://learn.microsoft.com/dotnet/api/system.boolean)<br>
 
 ## Constructors
 
@@ -50,38 +51,40 @@ No driver instance is available. Make sure that at least one
 public void Dispose()
 ```
 
-### <a id="methods-getrawinputreport"/>**GetRawInputReport(Int32, ref Ds3RawInputReport, Nullable&lt;TimeSpan&gt;)**
+### <a id="methods-getrawinputreport"/>**GetRawInputReport(Int32, ref DS3_RAW_INPUT_REPORT, Nullable&lt;TimeSpan&gt;)**
 
-Attempts to read the [Ds3RawInputReport](./nefarius.dshidmini.ipc.models.public.ds3rawinputreport.md) from a given device instance.
+Attempts to read the [DS3_RAW_INPUT_REPORT](./nefarius.dshidmini.ipc.models.public.ds3_raw_input_report.md) from a given device instance.
 
 ```csharp
-public bool GetRawInputReport(int deviceIndex, ref Ds3RawInputReport report, Nullable<TimeSpan> timeout)
+public bool GetRawInputReport(int deviceIndex, ref DS3_RAW_INPUT_REPORT report, Nullable<TimeSpan> timeout)
 ```
 
 #### Parameters
 
-`deviceIndex` [Int32](https://docs.microsoft.com/en-us/dotnet/api/system.int32)<br>
+`deviceIndex` [Int32](https://learn.microsoft.com/dotnet/api/system.int32)<br>
 The one-based device index.
 
-`report` [Ds3RawInputReport&](./nefarius.dshidmini.ipc.models.public.ds3rawinputreport&.md)<br>
-The [Ds3RawInputReport](./nefarius.dshidmini.ipc.models.public.ds3rawinputreport.md) to populate.
+`report` [DS3_RAW_INPUT_REPORT](./nefarius.dshidmini.ipc.models.public.ds3_raw_input_report.md)<br>
+The [DS3_RAW_INPUT_REPORT](./nefarius.dshidmini.ipc.models.public.ds3_raw_input_report.md) to populate.
 
-`timeout` [Nullable&lt;TimeSpan&gt;](https://docs.microsoft.com/en-us/dotnet/api/system.nullable-1)<br>
+`timeout` [Nullable](https://learn.microsoft.com/dotnet/api/system.nullable-1)<[TimeSpan](https://learn.microsoft.com/dotnet/api/system.timespan)><br>
 Optional timeout to wait for a report update to arrive. Default invocation returns immediately.
 
 #### Returns
 
 TRUE if `report` got filled in or FALSE if the given `deviceIndex` is not
- occupied, or if `timeout` is set and the named wait event for that slot does not exist.
+ occupied, if `timeout` is used and the named wait event for that slot does not exist (no device
+ in that slot), or if `timeout` expires before a new report generation arrives.
 
 #### Exceptions
 
-[DsHidMiniInteropUnavailableException](./nefarius.dshidmini.ipc.exceptions.dshidminiinteropunavailableexception.md)<br>
-Driver IPC unavailable, make sure that at least one compatible
- controller is connected and operational.
-
 [DsHidMiniInteropUnexpectedReplyException](./nefarius.dshidmini.ipc.exceptions.dshidminiinteropunexpectedreplyexception.md)<br>
 The driver returned unexpected or malformed data.
+
+[DsHidMiniInteropUnavailableException](./nefarius.dshidmini.ipc.exceptions.dshidminiinteropunavailableexception.md)<br>
+No driver instance is available. Make sure that at least one
+ device is connected and that the driver is installed and working properly. Call [DsHidMiniInterop.IsAvailable](./nefarius.dshidmini.ipc.dshidminiinterop.md#isavailable) prior to
+ avoid this exception.
 
 **Remarks:**
 
@@ -90,8 +93,9 @@ If `timeout` is null, this method returns the last known input report copy immed
  only return when the driver signaled that new data is available, otherwise you will just burn through CPU for no
  good reason. A new input report is typically available each average 5 milliseconds, depending on the connection
  (wired or wireless) so a timeout of 20 milliseconds should be a good recommendation.
- When `timeout` is set, the implementation waits on the driver's per-slot named auto-reset event
- (same DACL as other IPC objects); it does not require administrator elevation.
+ When `timeout` is set, the implementation waits on the driver's per-slot named manual-reset event
+ (same DACL as other IPC objects); it does not require administrator elevation. Multiple clients can wait on the
+ same slot without splitting wakeups.
 
 ### <a id="methods-reconnect"/>**Reconnect()**
 
@@ -138,10 +142,10 @@ public SetHostResult SetHostAddress(int deviceIndex, PhysicalAddress hostAddress
 
 #### Parameters
 
-`deviceIndex` [Int32](https://docs.microsoft.com/en-us/dotnet/api/system.int32)<br>
+`deviceIndex` [Int32](https://learn.microsoft.com/dotnet/api/system.int32)<br>
 The one-based device index.
 
-`hostAddress` PhysicalAddress<br>
+`hostAddress` [PhysicalAddress](https://learn.microsoft.com/dotnet/api/system.net.networkinformation.physicaladdress)<br>
 The new host address.
 
 #### Returns
@@ -181,15 +185,15 @@ public uint SetPlayerIndex(int deviceIndex, byte playerIndex)
 
 #### Parameters
 
-`deviceIndex` [Int32](https://docs.microsoft.com/en-us/dotnet/api/system.int32)<br>
+`deviceIndex` [Int32](https://learn.microsoft.com/dotnet/api/system.int32)<br>
 The one-based device index.
 
-`playerIndex` [Byte](https://docs.microsoft.com/en-us/dotnet/api/system.byte)<br>
+`playerIndex` [Byte](https://learn.microsoft.com/dotnet/api/system.byte)<br>
 The player index to set to. Valid values include 1 to 7.
 
 #### Returns
 
-[UInt32](https://docs.microsoft.com/en-us/dotnet/api/system.uint32)
+[UInt32](https://learn.microsoft.com/dotnet/api/system.uint32)
 
 #### Exceptions
 
@@ -197,9 +201,11 @@ The player index to set to. Valid values include 1 to 7.
 Driver IPC unavailable, make sure that at least one compatible
  controller is connected and operational.
 
-[ArgumentOutOfRangeException](https://docs.microsoft.com/en-us/dotnet/api/system.argumentoutofrangeexception)<br>
-The `deviceIndex` or `playerIndex`
- were out of range.
+[DsHidMiniInteropInvalidDeviceIndexException](./nefarius.dshidmini.ipc.exceptions.dshidminiinteropinvaliddeviceindexexception.md)<br>
+The `deviceIndex` was outside the valid range 1..255.
+
+[ArgumentOutOfRangeException](https://learn.microsoft.com/dotnet/api/system.argumentoutofrangeexception)<br>
+The `playerIndex` was outside the valid range 1..7.
 
 [DsHidMiniInteropConcurrencyException](./nefarius.dshidmini.ipc.exceptions.dshidminiinteropconcurrencyexception.md)<br>
 A different thread is currently performing a data exchange.

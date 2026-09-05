@@ -23,23 +23,26 @@ DSHM_ParseInputReport(
 	if (pDrvCtx->IPC.IsEnabled)
 	{
 		/*
-		 * Offset calculation puts each devices' input report copy 
-	     * in their respective position in the memory region, like:
-	     *   1st device: ((4 + 49) * (1 - 1)) = 0
-	     *   2nd device: ((4 + 49) * (2 - 1)) = 53
-	     *   3rd device: ((4 + 49) * (3 - 1)) = 106
-	     * and so on
+		 * Offset calculation puts each devices' input report copy
+		 * in their respective position in the memory region, like:
+		 *   1st device: (sizeof(IPC_HID_INPUT_REPORT_MESSAGE) * 0) = 0
+		 *   2nd device: (sizeof(IPC_HID_INPUT_REPORT_MESSAGE) * 1) = 60
+		 *   3rd device: (sizeof(IPC_HID_INPUT_REPORT_MESSAGE) * 2) = 120
+		 * and so on
 		 */
 		const size_t offset = (sizeof(IPC_HID_INPUT_REPORT_MESSAGE) * (DeviceContext->SlotIndex - 1));
 		const PIPC_HID_INPUT_REPORT_MESSAGE pHIDBuffer = (PIPC_HID_INPUT_REPORT_MESSAGE)(pDrvCtx->IPC.SharedRegions.HID.Buffer +
 			offset);
 
-		// prefix each report with associated device index
+		// odd generation: readers must retry until the snapshot is stable
+		InterlockedIncrement(&pHIDBuffer->SequenceNumber);
+		ResetEvent(DeviceContext->IPC.InputReportWaitHandle);
+
 		pHIDBuffer->SlotIndex = DeviceContext->SlotIndex;
-		// skip index and copy unmodified raw report to the section
 		RtlCopyMemory(&pHIDBuffer->InputReport, Report, sizeof(DS3_RAW_INPUT_REPORT));
 
-		// signal any reader that there is new data available
+		// even generation: snapshot is complete; wake every waiter
+		InterlockedIncrement(&pHIDBuffer->SequenceNumber);
 		SetEvent(DeviceContext->IPC.InputReportWaitHandle);
 	}
 
