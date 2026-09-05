@@ -1,4 +1,5 @@
 ﻿using System.ComponentModel;
+using System.Windows.Controls;
 
 using Nefarius.DsHidMini.ControlApp.Models;
 using Nefarius.DsHidMini.ControlApp.ViewModels.Windows;
@@ -37,22 +38,104 @@ public partial class MainWindow : INavigationWindow
         navigationService.SetNavigationControl(RootNavigation);
         snackbarService.SetSnackbarPresenter(SnackbarPresenter);
         contentDialogService.SetDialogHost(RootContentDialog);
+
+        ViewModel.OpenFromTrayRequested += (_, _) => RestoreFromTray();
+        ViewModel.AppConfig.MinimizeToTrayChanged += OnMinimizeToTrayChanged;
+
+        if (AppNotifyIcon.Menu is ContextMenu menu)
+        {
+            menu.DataContext = this;
+        }
     }
 
     public MainWindowViewModel ViewModel { get; }
+
+    public void RestoreFromTray()
+    {
+        ShowInTaskbar = true;
+        if (WindowState == WindowState.Minimized)
+        {
+            WindowState = WindowState.Normal;
+        }
+
+        Show();
+        Activate();
+    }
 
     protected override void OnSourceInitialized(EventArgs e)
     {
         base.OnSourceInitialized(e);
 
         _dshmDevMan.StartListeningForDshmDevices();
+        ApplyMinimizeToTraySetting();
+    }
+
+    protected override void OnStateChanged(EventArgs e)
+    {
+        base.OnStateChanged(e);
+
+        if (TrayWindowPolicy.ShouldHideOnMinimize(ViewModel.AppConfig.MinimizeToTray, WindowState))
+        {
+            HideToTray();
+        }
     }
 
     protected override void OnClosing(CancelEventArgs e)
     {
-        base.OnClosing(e);
+        if (TrayWindowPolicy.ShouldHideInsteadOfClose(ViewModel.AppConfig.MinimizeToTray, App.IsExiting))
+        {
+            e.Cancel = true;
+            HideToTray();
+            return;
+        }
+
+        ViewModel.AppConfig.MinimizeToTrayChanged -= OnMinimizeToTrayChanged;
+        if (AppNotifyIcon.IsRegistered)
+        {
+            AppNotifyIcon.Unregister();
+        }
 
         _dshmDevMan.StopListeningForDshmDevices();
+        base.OnClosing(e);
+    }
+
+    private void AppNotifyIcon_OnLeftClick(object sender, RoutedEventArgs e)
+    {
+        RestoreFromTray();
+    }
+
+    private void OnMinimizeToTrayChanged(object? sender, EventArgs e)
+    {
+        ApplyMinimizeToTraySetting();
+    }
+
+    private void ApplyMinimizeToTraySetting()
+    {
+        if (ViewModel.AppConfig.MinimizeToTray)
+        {
+            if (!AppNotifyIcon.IsRegistered)
+            {
+                AppNotifyIcon.Register();
+            }
+
+            return;
+        }
+
+        if (!IsVisible)
+        {
+            RestoreFromTray();
+        }
+
+        if (AppNotifyIcon.IsRegistered)
+        {
+            AppNotifyIcon.Unregister();
+        }
+    }
+
+    private void HideToTray()
+    {
+        Hide();
+        ShowInTaskbar = false;
     }
 
 

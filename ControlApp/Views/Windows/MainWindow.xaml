@@ -5,6 +5,7 @@
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:local="clr-namespace:Nefarius.DsHidMini.ControlApp.Views.Windows"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    xmlns:tray="clr-namespace:Wpf.Ui.Tray.Controls;assembly=Wpf.Ui.Tray"
     xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
     Title="{Binding ViewModel.ApplicationTitle, Mode=OneWay}"
     Width="1100"
@@ -22,6 +23,22 @@
     mc:Ignorable="d">
 
     <DockPanel>
+        <tray:NotifyIcon
+            x:Name="AppNotifyIcon"
+            Width="0"
+            Height="0"
+            FocusOnLeftClick="False"
+            Icon="pack://application:,,,/Assets/wpfui-icon-256.png"
+            LeftClick="AppNotifyIcon_OnLeftClick"
+            MenuOnRightClick="True"
+            TooltipText="DsHidMini ControlApp">
+            <tray:NotifyIcon.Menu>
+                <ContextMenu>
+                    <MenuItem Command="{Binding ViewModel.OpenFromTrayCommand}" Header="Open" />
+                    <MenuItem Command="{Binding ViewModel.ExitFromTrayCommand}" Header="Exit" />
+                </ContextMenu>
+            </tray:NotifyIcon.Menu>
+        </tray:NotifyIcon>
         <DockPanel DockPanel.Dock="Top">
             <ui:Button
                 Margin="10,0,0,0"

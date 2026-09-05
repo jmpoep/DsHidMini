@@ -25,6 +25,28 @@ namespace Nefarius.DsHidMini.ControlApp;
 /// </summary>
 public partial class App
 {
+    private const string SingleInstanceMutexName = "Nefarius.DsHidMini.ControlApp.SingleInstance";
+    private const string ShowWindowEventName = "Nefarius.DsHidMini.ControlApp.ShowWindow";
+
+    private static Mutex? _singleInstanceMutex;
+    private static EventWaitHandle? _showWindowEvent;
+    private static CancellationTokenSource? _showWindowListenCts;
+    private static bool _hostStarted;
+
+    /// <summary>
+    ///     True once a real shutdown has been requested (tray Exit, Restart as Admin, or Windows session end).
+    /// </summary>
+    public static bool IsExiting { get; private set; }
+
+    /// <summary>
+    ///     Exit the process even when minimize-to-tray is enabled.
+    /// </summary>
+    public static void RequestExit()
+    {
+        IsExiting = true;
+        Current.Shutdown();
+    }
+
     // The.NET Generic Host provides dependency injection, configuration, logging, and other services.
     // https://docs.microsoft.com/dotnet/core/extensions/generic-host
     // https://docs.microsoft.com/dotnet/core/extensions/dependency-injection
@@ -92,8 +114,20 @@ public partial class App
     /// </summary>
     private void OnStartup(object sender, StartupEventArgs e)
     {
+        _singleInstanceMutex = new Mutex(true, SingleInstanceMutexName, out bool createdNew);
+        _showWindowEvent = new EventWaitHandle(false, EventResetMode.AutoReset, ShowWindowEventName);
+
+        if (!createdNew)
+        {
+            _showWindowEvent.Set();
+            Shutdown();
+            return;
+        }
+
         Log.Logger.Information("App startup");
         AppHost.Start();
+        _hostStarted = true;
+        StartListeningForActivation();
     }
 
     /// <summary>
@@ -102,8 +136,32 @@ public partial class App
     private async void OnExit(object sender, ExitEventArgs e)
     {
         Log.Logger.Information("App exiting");
-        await AppHost.StopAsync();
-        AppHost.Dispose();
+        _showWindowListenCts?.Cancel();
+        _showWindowEvent?.Dispose();
+        if (_singleInstanceMutex is not null)
+        {
+            try
+            {
+                _singleInstanceMutex.ReleaseMutex();
+            }
+            catch (ApplicationException)
+            {
+                // Not owned (second instance exiting after signaling the first).
+            }
+
+            _singleInstanceMutex.Dispose();
+        }
+
+        if (_hostStarted)
+        {
+            await AppHost.StopAsync();
+            AppHost.Dispose();
+        }
+    }
+
+    private void OnSessionEnding(object sender, SessionEndingCancelEventArgs e)
+    {
+        IsExiting = true;
     }
 
     /// <summary>
@@ -114,5 +172,36 @@ public partial class App
         // For more info see https://docs.microsoft.com/en-us/dotnet/api/system.windows.application.dispatcherunhandledexception?view=windowsdesktop-6.0
 
         Log.Logger.Fatal(e.Exception, "Unhandled exception");
+    }
+
+    private static void StartListeningForActivation()
+    {
+        _showWindowListenCts = new CancellationTokenSource();
+        CancellationToken token = _showWindowListenCts.Token;
+        _ = Task.Factory.StartNew(() =>
+        {
+            while (!token.IsCancellationRequested)
+            {
+                try
+                {
+                    if (_showWindowEvent!.WaitOne(TimeSpan.FromMilliseconds(500)))
+                    {
+                        Current.Dispatcher.Invoke(ActivateMainWindow, DispatcherPriority.Normal);
+                    }
+                }
+                catch (ObjectDisposedException)
+                {
+                    break;
+                }
+            }
+        }, token, TaskCreationOptions.LongRunning, TaskScheduler.Default);
+    }
+
+    internal static void ActivateMainWindow()
+    {
+        if (AppHost.Services.GetService(typeof(MainWindow)) is MainWindow window)
+        {
+            window.RestoreFromTray();
+        }
     }
 }

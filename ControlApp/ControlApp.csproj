@@ -42,6 +42,7 @@
         <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.2" />
         <PackageReference Include="WPF-UI" Version="4.2.0" />
         <PackageReference Include="WPF-UI.DependencyInjection" Version="4.2.0" />
+        <PackageReference Include="WPF-UI.Tray" Version="4.2.0" />
     </ItemGroup>
 
     <ItemGroup>

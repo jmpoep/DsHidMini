@@ -110,6 +110,8 @@ This compiles the solution (if needed) and publishes the ControlApp to the solut
 
 - **Theme** — Light or dark (WPF-UI application theme).
 - **App version** — Displayed in the title bar / settings.
+- **Automatically restart devices on HID mode mismatch** — Driver self-restart when the loaded HID mode does not match the mode Windows already probed.
+- **Minimize to tray** — When enabled, Minimize and Close hide ControlApp to the notification area; use the tray icon to reopen or Exit to quit.
 - **Application configuration** — Stored in %AppData%; see [Configuration](#configuration).
 
 ---
@@ -124,6 +126,7 @@ Application-level options are stored in **%AppData%** in a JSON file (and option
 | **IsUpdateCheckEnabled** | Check for updates on startup | `true` |
 | **IsGenuineCheckEnabled** | Validate controller MAC against known OUI list | `true` |
 | **HasAcknowledgedDonationDialog** | User has dismissed the donation prompt | `false` |
+| **MinimizeToTray** | Hide to the notification area on Minimize or Close | `false` |
 
 DsHidMini driver configuration (profiles, global profile, per-device profile assignment) is managed by **DshmConfigManager** and persisted via its own user-data store; the ControlApp UI reads and writes that through the same manager.
 

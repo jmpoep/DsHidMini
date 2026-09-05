@@ -1,5 +1,6 @@
 ﻿using System.Reflection;
 
+using Nefarius.DsHidMini.ControlApp.Models;
 using Nefarius.DsHidMini.ControlApp.Models.DshmConfigManager;
 
 using Wpf.Ui.Abstractions.Controls;
@@ -42,6 +43,34 @@ public partial class SettingsViewModel : ObservableObject, INavigationAware
             if (!_dshmConfigManager.SaveChangesAndUpdateDsHidMiniConfigFile())
             {
                 Log.Logger.Error("Failed to persist AutoRestartOnHidModeMismatch.");
+            }
+
+            OnPropertyChanged();
+        }
+    }
+
+    /// <summary>
+    ///     When enabled, Minimize and Close hide ControlApp to the notification area instead of exiting
+    ///     (see issue #80).
+    /// </summary>
+    public bool MinimizeToTray
+    {
+        get => ApplicationConfiguration.Instance.MinimizeToTray;
+        set
+        {
+            if (ApplicationConfiguration.Instance.MinimizeToTray == value)
+            {
+                return;
+            }
+
+            ApplicationConfiguration.Instance.MinimizeToTray = value;
+            try
+            {
+                ApplicationConfiguration.Instance.Save();
+            }
+            catch (Exception ex)
+            {
+                Log.Logger.Error(ex, "Failed to persist MinimizeToTray.");
             }
 
             OnPropertyChanged();

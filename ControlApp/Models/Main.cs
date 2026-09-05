@@ -20,6 +20,6 @@ public class Main
 
         Debug.WriteLine("restarting as admin");
         StartAsAdmin(Environment.ProcessPath!);
-        Application.Current.Shutdown();
+        Nefarius.DsHidMini.ControlApp.App.RequestExit();
     }
 }

@@ -46,12 +46,6 @@ public partial class MainWindowViewModel : ObservableObject
         }
     };
 
-    [ObservableProperty]
-    private ObservableCollection<MenuItem> _trayMenuItems = new()
-    {
-        new MenuItem { Header = "Home", Tag = "tray_home" }
-    };
-
     public MainWindowViewModel(AppSnackbarMessagesService appSnackbarMessagesService)
     {
         _appSnackbarMessagesService = appSnackbarMessagesService;
@@ -63,10 +57,24 @@ public partial class MainWindowViewModel : ObservableObject
 
     public ApplicationConfiguration AppConfig => ApplicationConfiguration.Instance;
 
+    public event EventHandler? OpenFromTrayRequested;
+
     [RelayCommand]
     public void RestartAsAdmin()
     {
         Main.RestartAsAdmin();
+    }
+
+    [RelayCommand]
+    private void OpenFromTray()
+    {
+        OpenFromTrayRequested?.Invoke(this, EventArgs.Empty);
+    }
+
+    [RelayCommand]
+    private void ExitFromTray()
+    {
+        Nefarius.DsHidMini.ControlApp.App.RequestExit();
     }
 
 
