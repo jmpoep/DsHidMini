@@ -58,16 +58,105 @@ public class ApplicationConfigurationAndTrayPolicyTests
     }
 
     [Fact]
-    public void RestartAsAdminFlow_ReleasesOwnershipBeforeLaunchThenShutsDown()
+    public void RestartAsAdminFlow_LaunchFailureReacquiresAndDoesNotExit()
     {
         List<string> steps = new();
 
-        RestartAsAdminFlow.Run(
+        bool completed = RestartAsAdminFlow.Run(
+            () =>
+            {
+                steps.Add("launch");
+                throw new InvalidOperationException("elevated launch failed");
+            },
             () => steps.Add("release"),
-            () => steps.Add("launch"),
-            () => steps.Add("shutdown"));
+            () => steps.Add("reacquire"),
+            () => steps.Add("shutdown"),
+            () =>
+            {
+                steps.Add("wait");
+                return true;
+            });
 
-        Assert.Equal(new[] { "release", "launch", "shutdown" }, steps);
+        Assert.False(completed);
+        Assert.Equal(new[] { "launch", "reacquire" }, steps);
+    }
+
+    [Fact]
+    public void RestartAsAdminFlow_SuccessfulHandoffReleasesAfterSuccessorIsReady()
+    {
+        List<string> steps = new();
+
+        bool completed = RestartAsAdminFlow.Run(
+            () => steps.Add("launch"),
+            () => steps.Add("release"),
+            () => steps.Add("reacquire"),
+            () => steps.Add("shutdown"),
+            () =>
+            {
+                steps.Add("wait");
+                return true;
+            });
+
+        Assert.True(completed);
+        Assert.Equal(new[] { "launch", "wait", "release", "shutdown" }, steps);
+    }
+
+    [Fact]
+    public void RestartAsAdminFlow_SuccessorWaitFailureReacquiresAndDoesNotExit()
+    {
+        List<string> steps = new();
+
+        bool completed = RestartAsAdminFlow.Run(
+            () => steps.Add("launch"),
+            () => steps.Add("release"),
+            () => steps.Add("reacquire"),
+            () => steps.Add("shutdown"),
+            () =>
+            {
+                steps.Add("wait");
+                return false;
+            });
+
+        Assert.False(completed);
+        Assert.Equal(new[] { "launch", "wait", "reacquire" }, steps);
+    }
+
+    [Fact]
+    public async Task SingleInstanceLifetime_HandoffKeepsCompetingStartupFromBecomingPrimary()
+    {
+        string suffix = Guid.NewGuid().ToString("N");
+        string mutexName = "Nefarius.DsHidMini.ControlApp.Tests.Mutex." + suffix;
+        string eventName = "Nefarius.DsHidMini.ControlApp.Tests.Event." + suffix;
+        string token = Guid.NewGuid().ToString("N");
+
+        using SingleInstanceLifetime parent = new(mutexName, eventName);
+        using EventWaitHandle ready = SingleInstanceLifetime.CreateHandoffReadyEvent(token);
+
+        Task<SingleInstanceLifetime?> successorTask = Task.Run(() =>
+            SingleInstanceLifetime.TryAdoptAfterHandoff(
+                mutexName,
+                eventName,
+                token,
+                TimeSpan.FromSeconds(5)));
+
+        Assert.True(ready.WaitOne(TimeSpan.FromSeconds(5)));
+
+        using (SingleInstanceLifetime competitor = new(mutexName, eventName))
+        {
+            Assert.False(competitor.IsPrimary);
+        }
+
+        parent.ReleaseOwnership();
+
+        SingleInstanceLifetime? successor = await successorTask;
+        Assert.NotNull(successor);
+        using (successor)
+        {
+            Assert.True(successor.IsPrimary);
+
+            using SingleInstanceLifetime lateCompetitor = new(mutexName, eventName);
+            Assert.False(lateCompetitor.IsPrimary);
+        }
     }
 
     [Fact]

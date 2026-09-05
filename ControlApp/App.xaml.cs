@@ -52,6 +52,11 @@ public partial class App
         _singleInstance?.ReleaseOwnership();
     }
 
+    public static void ReacquireSingleInstanceOwnership()
+    {
+        _singleInstance?.ReacquireOwnership();
+    }
+
     // The.NET Generic Host provides dependency injection, configuration, logging, and other services.
     // https://docs.microsoft.com/dotnet/core/extensions/generic-host
     // https://docs.microsoft.com/dotnet/core/extensions/dependency-injection
@@ -119,13 +124,37 @@ public partial class App
     /// </summary>
     private void OnStartup(object sender, StartupEventArgs e)
     {
-        _singleInstance = new SingleInstanceLifetime();
-
-        if (!_singleInstance.IsPrimary)
+        if (SingleInstanceLifetime.TryParseHandoffToken(e.Args, out string? handoffToken))
         {
-            _singleInstance.ShowWindowEvent.Set();
-            Shutdown();
-            return;
+            try
+            {
+                _singleInstance = SingleInstanceLifetime.TryAdoptAfterHandoff(
+                    SingleInstanceLifetime.MutexName,
+                    SingleInstanceLifetime.ShowWindowEventName,
+                    handoffToken,
+                    TimeSpan.FromSeconds(15));
+            }
+            catch (Exception ex)
+            {
+                Log.Logger.Error(ex, "Failed to adopt single-instance ownership after elevation handoff.");
+            }
+
+            if (_singleInstance is null)
+            {
+                Shutdown();
+                return;
+            }
+        }
+        else
+        {
+            _singleInstance = new SingleInstanceLifetime();
+
+            if (!_singleInstance.IsPrimary)
+            {
+                _singleInstance.ShowWindowEvent.Set();
+                Shutdown();
+                return;
+            }
         }
 
         Log.Logger.Information("App startup");
