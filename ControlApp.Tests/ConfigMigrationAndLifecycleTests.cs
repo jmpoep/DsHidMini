@@ -155,6 +155,7 @@ public class ConfigMigrationAndLifecycleTests : IDisposable
 
         Assert.False(manager.SaveChangesAndUpdateDsHidMiniConfigFile());
         Assert.Equal(original, File.ReadAllText(locations.UserDataFilePath));
+        Assert.True(manager.AutoRestartOnHidModeMismatch);
     }
 
     [Fact]

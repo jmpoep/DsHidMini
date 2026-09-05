@@ -1,5 +1,7 @@
 ﻿using System.IO;
 
+using Newtonsoft.Json;
+
 using Nefarius.DsHidMini.ControlApp.Models.DshmConfigManager.DshmConfig;
 using Nefarius.DsHidMini.ControlApp.Models.DshmConfigManager.Enums;
 
@@ -142,6 +144,7 @@ public class DshmConfigManager
         if (!updated)
         {
             RestoreUserDataFile(userDataPath, previousUserJson);
+            RestoreUserDataMemory(previousUserJson);
         }
 
         return updated;
@@ -166,6 +169,19 @@ public class DshmConfigManager
         {
             Log.Logger.Error(ex,
                 "Failed to restore previous ControlApp user data after a driver config write failure.");
+        }
+    }
+
+    private void RestoreUserDataMemory(string? previousUserJson)
+    {
+        try
+        {
+            _userData.RestoreFromSnapshot(previousUserJson);
+        }
+        catch (Exception ex) when (ex is JsonException or IOException)
+        {
+            Log.Logger.Error(ex,
+                "Failed to restore in-memory ControlApp user data after a driver config write failure.");
         }
     }
 
