@@ -40,6 +40,8 @@ NTSTATUS DsBth_SendDisconnectRequest(PDEVICE_CONTEXT Context)
 		NULL
 	);
 
+	EventWriteWirelessDisconnectIoctlCompleted(Context->DeviceAddressString, status);
+
 	FuncExit(TRACE_DSBTH, "status=%!STATUS!", status);
 	
 	return status;
@@ -59,9 +61,6 @@ DsBth_DisconnectEventCallback(
 	UNREFERENCED_PARAMETER(TimerOrWaitFired);
 
 	FuncEntry(TRACE_DSBTH);
-	
-	UnregisterWait(pDevCtx->ConfigurationDirectoryWatcherWaitHandle);
-	CloseHandle(pDevCtx->ConfigurationDirectoryWatcherEvent);
 
 	if (!NT_SUCCESS(status = DsBth_SendDisconnectRequest(pDevCtx)))
 	{

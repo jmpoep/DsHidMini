@@ -125,18 +125,43 @@ DsHidMini_EvtDeviceReleaseHardware(
 	// run (issue #311), this is what prevents DsUsb_EvtUsbInterruptPipeReadComplete
 	// from firing against an already-closed [VirtualHidMini] Module.
 	//
-	if (pDevCtx->ConnectionType == DsDeviceConnectionTypeUsb
-		&& pDevCtx->Connection.Usb.InterruptInPipe != NULL)
+	if (pDevCtx->ConnectionType == DsDeviceConnectionTypeUsb)
 	{
-		TraceVerbose(
-			TRACE_POWER,
-			"Stopping USB interrupt reader from ReleaseHardware"
-		);
+		if (pDevCtx->Connection.Usb.DisconnectRetryTimer)
+		{
+			WdfTimerStop(pDevCtx->Connection.Usb.DisconnectRetryTimer, TRUE);
+			pDevCtx->Connection.Usb.DisconnectRetryRemaining = 0;
+		}
 
-		WdfIoTargetStop(
-			WdfUsbTargetPipeGetIoTarget(pDevCtx->Connection.Usb.InterruptInPipe),
-			WdfIoTargetCancelSentIo
-		);
+		DsDevice_RevokeWiredPresence(pDevCtx);
+
+		if (pDevCtx->Connection.Usb.InterruptInPipe != NULL)
+		{
+			TraceVerbose(
+				TRACE_POWER,
+				"Stopping USB interrupt reader from ReleaseHardware"
+			);
+
+			WdfIoTargetStop(
+				WdfUsbTargetPipeGetIoTarget(pDevCtx->Connection.Usb.InterruptInPipe),
+				WdfIoTargetCancelSentIo
+			);
+		}
+	}
+
+	if (pDevCtx->ConnectionType == DsDeviceConnectionTypeBth)
+	{
+		if (pDevCtx->Connection.Bth.DisconnectWaitHandle)
+		{
+			UnregisterWaitEx(pDevCtx->Connection.Bth.DisconnectWaitHandle, INVALID_HANDLE_VALUE);
+			pDevCtx->Connection.Bth.DisconnectWaitHandle = NULL;
+		}
+
+		if (pDevCtx->Connection.Bth.DisconnectEvent)
+		{
+			CloseHandle(pDevCtx->Connection.Bth.DisconnectEvent);
+			pDevCtx->Connection.Bth.DisconnectEvent = NULL;
+		}
 	}
 
 	//

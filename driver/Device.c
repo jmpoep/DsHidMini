@@ -2,6 +2,7 @@
 #include "Device.tmh"
 #include <DmfModule.h>
 #include <devpkey.h>
+#include <sddl.h>
 
 
 EVT_DMF_DEVICE_MODULES_ADD DmfDeviceModulesAdd;
@@ -253,6 +254,26 @@ void DsHidMini_DeviceCleanup(
 		}
 	}
 	WdfWaitLockRelease(driverContext->SlotsLock);
+
+	if (deviceContext->ConnectionType == DsDeviceConnectionTypeUsb)
+	{
+		DsDevice_RevokeWiredPresence(deviceContext);
+	}
+
+	if (deviceContext->ConnectionType == DsDeviceConnectionTypeBth)
+	{
+		if (deviceContext->Connection.Bth.DisconnectWaitHandle)
+		{
+			UnregisterWaitEx(deviceContext->Connection.Bth.DisconnectWaitHandle, INVALID_HANDLE_VALUE);
+			deviceContext->Connection.Bth.DisconnectWaitHandle = NULL;
+		}
+
+		if (deviceContext->Connection.Bth.DisconnectEvent)
+		{
+			CloseHandle(deviceContext->Connection.Bth.DisconnectEvent);
+			deviceContext->Connection.Bth.DisconnectEvent = NULL;
+		}
+	}
 
 	EventWriteUnloadEvent(Object);
 
@@ -594,6 +615,29 @@ DsDevice_InitContext(
 			G_Ds3UsbHidOutputReport,
 			DS3_USB_HID_OUTPUT_REPORT_SIZE
 		);
+
+		WDF_OBJECT_ATTRIBUTES_INIT(&attributes);
+		attributes.ParentObject = Device;
+
+		WDF_TIMER_CONFIG_INIT(
+			&timerCfg,
+			DsDevice_EvtBthDisconnectRetryTimerFunc
+		);
+
+		if (!NT_SUCCESS(status = WdfTimerCreate(
+			&timerCfg,
+			&attributes,
+			&pDevCtx->Connection.Usb.DisconnectRetryTimer
+		)))
+		{
+			TraceError(
+				TRACE_DEVICE,
+				"WdfTimerCreate (DisconnectRetryTimer) failed with status %!STATUS!",
+				status
+			);
+			EventWriteFailedWithNTStatus(__FUNCTION__, L"WdfTimerCreate (DisconnectRetryTimer)", status);
+			break;
+		}
 
 		break;
 
@@ -1116,56 +1160,226 @@ void DsDevice_RegisterHotReloadListener(PDEVICE_CONTEXT Context)
 }
 
 //
+// Formats the controller MAC in display order for both transports. Bluetooth
+// stores DeviceAddress LSB-first; USB stores the feature-report (MSB-first)
+// layout. The resulting 12-hex-digit string is what both sides of the
+// USB/wireless handshake must use as the named-event suffix.
+// 
+void
+DsDevice_FormatCanonicalAddress(
+	_In_ PDEVICE_CONTEXT Context,
+	_Out_writes_(BufferChars) PWCHAR Buffer,
+	_In_ size_t BufferChars
+)
+{
+	if (BufferChars < DSHM_DEVICE_ADDRESS_CCH)
+	{
+		if (BufferChars > 0)
+		{
+			Buffer[0] = L'\0';
+		}
+		return;
+	}
+
+	if (Context->ConnectionType == DsDeviceConnectionTypeBth)
+	{
+		swprintf_s(
+			Buffer,
+			BufferChars,
+			L"%02X%02X%02X%02X%02X%02X",
+			Context->DeviceAddress.Address[5],
+			Context->DeviceAddress.Address[4],
+			Context->DeviceAddress.Address[3],
+			Context->DeviceAddress.Address[2],
+			Context->DeviceAddress.Address[1],
+			Context->DeviceAddress.Address[0]
+		);
+	}
+	else
+	{
+		swprintf_s(
+			Buffer,
+			BufferChars,
+			L"%02X%02X%02X%02X%02X%02X",
+			Context->DeviceAddress.Address[0],
+			Context->DeviceAddress.Address[1],
+			Context->DeviceAddress.Address[2],
+			Context->DeviceAddress.Address[3],
+			Context->DeviceAddress.Address[4],
+			Context->DeviceAddress.Address[5]
+		);
+	}
+}
+
+static BOOLEAN
+DsDevice_BuildNamedEventName(
+	_In_ PDEVICE_CONTEXT Context,
+	_In_ PCWSTR Format,
+	_Out_writes_(EventNameChars) PWCHAR EventName,
+	_In_ size_t EventNameChars
+)
+{
+	WCHAR deviceAddress[DSHM_DEVICE_ADDRESS_CCH];
+
+	DsDevice_FormatCanonicalAddress(Context, deviceAddress, ARRAYSIZE(deviceAddress));
+
+	return swprintf_s(EventName, EventNameChars, Format, deviceAddress) > 0;
+}
+
+static HANDLE
+DsDevice_CreateSharedNamedEvent(
+	_In_ PCWSTR EventName,
+	_In_ BOOLEAN ManualReset,
+	_In_ BOOLEAN InitialState
+)
+{
+	SECURITY_ATTRIBUTES sa;
+	HANDLE event;
+
+	sa.nLength = sizeof(SECURITY_ATTRIBUTES);
+	sa.bInheritHandle = FALSE;
+	sa.lpSecurityDescriptor = NULL;
+
+	if (!ConvertStringSecurityDescriptorToSecurityDescriptor(
+		TEXT("D:(A;;0x001F0003;;;BA)(A;;0x00100002;;;AU)"),
+		SDDL_REVISION_1,
+		&sa.lpSecurityDescriptor,
+		NULL
+	))
+	{
+		EventWriteFailedWithWin32Error(__FUNCTION__, L"ConvertStringSecurityDescriptorToSecurityDescriptor", GetLastError());
+		return NULL;
+	}
+
+	event = CreateEventW(
+		&sa,
+		ManualReset,
+		InitialState,
+		EventName
+	);
+
+	const DWORD createError = GetLastError();
+
+	LocalFree(sa.lpSecurityDescriptor);
+
+	if (event == NULL)
+	{
+		SetLastError(createError);
+		return NULL;
+	}
+
+	//
+	// CreateEventW ignores bInitialState when the named object already
+	// exists. A leaked, still-signaled disconnect event would immediately
+	// fire the new waiter (issue #330), so reset it back to unsignaled.
+	// 
+	if (createError == ERROR_ALREADY_EXISTS && !InitialState)
+	{
+		ResetEvent(event);
+	}
+
+	return event;
+}
+
+static BOOLEAN
+DsDevice_TrySignalBthDisconnect(
+	_In_ PDEVICE_CONTEXT Context
+)
+{
+	WCHAR dcEventName[DSHM_NAMED_EVENT_NAME_CCH];
+
+	if (!DsDevice_BuildNamedEventName(
+		Context,
+		DSHM_NAMED_EVENT_DISCONNECT,
+		dcEventName,
+		ARRAYSIZE(dcEventName)
+	))
+	{
+		return FALSE;
+	}
+
+	const HANDLE dcEvent = OpenEventW(
+		SYNCHRONIZE | EVENT_MODIFY_STATE,
+		FALSE,
+		dcEventName
+	);
+
+	if (dcEvent != NULL)
+	{
+		TraceInformation(
+			TRACE_DSUSB,
+			"Found existing event %ls, signalling disconnect",
+			dcEventName
+		);
+
+		EventWriteWirelessDisconnectSignaled(Context->DeviceAddressString);
+
+		SetEvent(dcEvent);
+		CloseHandle(dcEvent);
+		return TRUE;
+	}
+
+	const DWORD error = GetLastError();
+
+	if (error != ERROR_NOT_FOUND && error != ERROR_FILE_NOT_FOUND)
+	{
+		TraceError(
+			TRACE_DSUSB,
+			"OpenEventW failed with %!WINERROR!",
+			error
+		);
+		EventWriteFailedWithWin32Error(__FUNCTION__, L"OpenEventW", error);
+	}
+
+	return FALSE;
+}
+
+//
 // Register event to disconnect from Bluetooth, bypassing mshidumdf.sys
 // 
 void DsDevice_RegisterBthDisconnectListener(PDEVICE_CONTEXT Context)
 {
-	WCHAR dcEventName[44];
-	WCHAR deviceAddress[13];
+	WCHAR dcEventName[DSHM_NAMED_EVENT_NAME_CCH];
 
 	FuncEntry(TRACE_DEVICE);
 
-	swprintf_s(
-		deviceAddress,
-		ARRAYSIZE(deviceAddress),
-		L"%012llX",
-		*(PULONGLONG)&Context->DeviceAddress
-	);
-
-	swprintf_s(
-		dcEventName,
-		ARRAYSIZE(dcEventName),
+	if (!DsDevice_BuildNamedEventName(
+		Context,
 		DSHM_NAMED_EVENT_DISCONNECT,
-		deviceAddress
-	);
+		dcEventName,
+		ARRAYSIZE(dcEventName)
+	))
+	{
+		TraceError(
+			TRACE_DEVICE,
+			"Failed to build disconnect event name"
+		);
+		FuncExitNoReturn(TRACE_DEVICE);
+		return;
+	}
 
-	TraceVerbose(
+	TraceInformation(
 		TRACE_DEVICE,
 		"Disconnect event name: %ls",
 		dcEventName
 	);
 
-	TCHAR* szSD = TEXT("D:(A;;0x001F0003;;;BA)(A;;0x00100002;;;AU)");
-	SECURITY_ATTRIBUTES sa;
-	sa.nLength = sizeof(SECURITY_ATTRIBUTES);
-	sa.bInheritHandle = FALSE;
-	ConvertStringSecurityDescriptorToSecurityDescriptor(
-		szSD,
-		SDDL_REVISION_1,
-		&((&sa)->lpSecurityDescriptor),
-		NULL
-	);
+	if (Context->Connection.Bth.DisconnectWaitHandle)
+	{
+		UnregisterWaitEx(Context->Connection.Bth.DisconnectWaitHandle, INVALID_HANDLE_VALUE);
+		Context->Connection.Bth.DisconnectWaitHandle = NULL;
+	}
 
-	if (Context->Connection.Bth.DisconnectEvent) {
+	if (Context->Connection.Bth.DisconnectEvent)
+	{
 		CloseHandle(Context->Connection.Bth.DisconnectEvent);
 		Context->Connection.Bth.DisconnectEvent = NULL;
 	}
 
-	Context->Connection.Bth.DisconnectEvent = CreateEventW(
-		&sa,
+	Context->Connection.Bth.DisconnectEvent = DsDevice_CreateSharedNamedEvent(
+		dcEventName,
 		FALSE,
-		FALSE,
-		dcEventName
+		FALSE
 	);
 
 	if (Context->Connection.Bth.DisconnectEvent == NULL)
@@ -1175,6 +1389,8 @@ void DsDevice_RegisterBthDisconnectListener(PDEVICE_CONTEXT Context)
 			"Failed to create disconnect event"
 		);
 		EventWriteFailedWithWin32Error(__FUNCTION__, L"CreateEventW", GetLastError());
+		FuncExitNoReturn(TRACE_DEVICE);
+		return;
 	}
 
 	const BOOL ret = RegisterWaitForSingleObject(
@@ -1183,7 +1399,7 @@ void DsDevice_RegisterBthDisconnectListener(PDEVICE_CONTEXT Context)
 		DsBth_DisconnectEventCallback,
 		Context,
 		INFINITE,
-		WT_EXECUTELONGFUNCTION | WT_EXECUTEONLYONCE
+		WT_EXECUTELONGFUNCTION
 	);
 
 	if (!ret)
@@ -1205,70 +1421,164 @@ void DsDevice_RegisterBthDisconnectListener(PDEVICE_CONTEXT Context)
 // 
 void DsDevice_InvokeLocalBthDisconnect(PDEVICE_CONTEXT Context)
 {
-	WCHAR deviceAddress[13];
-	WCHAR dcEventName[44];
-
-	//
-	// Convert to expected hex string
-	// 
-	swprintf_s(
-		deviceAddress,
-		ARRAYSIZE(deviceAddress),
-		L"%02X%02X%02X%02X%02X%02X",
-		Context->DeviceAddress.Address[0],
-		Context->DeviceAddress.Address[1],
-		Context->DeviceAddress.Address[2],
-		Context->DeviceAddress.Address[3],
-		Context->DeviceAddress.Address[4],
-		Context->DeviceAddress.Address[5]
-	);
-
-	//
-	// Disconnect Bluetooth connection, if detected
-	//
-
-    (void)swprintf_s(
-        dcEventName,
-        ARRAYSIZE(dcEventName),
-        DSHM_NAMED_EVENT_DISCONNECT,
-        deviceAddress
-    );
-
-	const HANDLE dcEvent = OpenEventW(
-		SYNCHRONIZE | EVENT_MODIFY_STATE,
-		FALSE,
-		dcEventName
-	);
-
-	if (dcEvent != NULL)
+	if (DsDevice_TrySignalBthDisconnect(Context))
 	{
-		TraceVerbose(
-			TRACE_DSUSB,
-			"Found existing event %ls, signalling disconnect",
-			dcEventName
-		);
+		Context->Connection.Usb.DisconnectRetryRemaining = 0;
+		return;
+	}
 
-		SetEvent(dcEvent);
-		CloseHandle(dcEvent);
+	if (Context->Connection.Usb.DisconnectRetryTimer == NULL)
+	{
+		EventWriteWirelessDisconnectEventNotFound(Context->DeviceAddressString);
+		return;
+	}
+
+	Context->Connection.Usb.DisconnectRetryRemaining = DSHM_BTH_DISCONNECT_RETRY_COUNT;
+
+	WdfTimerStart(
+		Context->Connection.Usb.DisconnectRetryTimer,
+		WDF_REL_TIMEOUT_IN_MS(DSHM_BTH_DISCONNECT_RETRY_DELAY_MS)
+	);
+}
+
+_Use_decl_annotations_
+VOID
+DsDevice_EvtBthDisconnectRetryTimerFunc(
+	WDFTIMER Timer
+)
+{
+	FuncEntry(TRACE_DEVICE);
+
+	const PDEVICE_CONTEXT pDevCtx = DeviceGetContext(WdfTimerGetParentObject(Timer));
+
+	if (DsDevice_TrySignalBthDisconnect(pDevCtx))
+	{
+		pDevCtx->Connection.Usb.DisconnectRetryRemaining = 0;
+		FuncExitNoReturn(TRACE_DEVICE);
+		return;
+	}
+
+	if (pDevCtx->Connection.Usb.DisconnectRetryRemaining > 0)
+	{
+		pDevCtx->Connection.Usb.DisconnectRetryRemaining--;
+
+		if (pDevCtx->Connection.Usb.DisconnectRetryRemaining > 0)
+		{
+			WdfTimerStart(
+				pDevCtx->Connection.Usb.DisconnectRetryTimer,
+				WDF_REL_TIMEOUT_IN_MS(DSHM_BTH_DISCONNECT_RETRY_DELAY_MS)
+			);
+
+			FuncExitNoReturn(TRACE_DEVICE);
+			return;
+		}
+	}
+
+	TraceInformation(
+		TRACE_DSUSB,
+		"No wireless instance found to disconnect for %s",
+		pDevCtx->DeviceAddressString
+	);
+	EventWriteWirelessDisconnectEventNotFound(pDevCtx->DeviceAddressString);
+
+	FuncExitNoReturn(TRACE_DEVICE);
+}
+
+void
+DsDevice_AdvertiseWiredPresence(
+	PDEVICE_CONTEXT Context
+)
+{
+	WCHAR eventName[DSHM_NAMED_EVENT_NAME_CCH];
+
+	FuncEntry(TRACE_DEVICE);
+
+	if (!DsDevice_BuildNamedEventName(
+		Context,
+		DSHM_NAMED_EVENT_WIRED_PRESENT,
+		eventName,
+		ARRAYSIZE(eventName)
+	))
+	{
+		FuncExitNoReturn(TRACE_DEVICE);
+		return;
+	}
+
+	if (Context->Connection.Usb.WiredPresentEvent)
+	{
+		CloseHandle(Context->Connection.Usb.WiredPresentEvent);
+		Context->Connection.Usb.WiredPresentEvent = NULL;
+	}
+
+	Context->Connection.Usb.WiredPresentEvent = DsDevice_CreateSharedNamedEvent(
+		eventName,
+		TRUE,
+		TRUE
+	);
+
+	if (Context->Connection.Usb.WiredPresentEvent == NULL)
+	{
+		TraceError(
+			TRACE_DEVICE,
+			"Failed to create wired-present event %ls",
+			eventName
+		);
+		EventWriteFailedWithWin32Error(__FUNCTION__, L"CreateEventW", GetLastError());
 	}
 	else
 	{
-		DWORD error = GetLastError();
-
-        // 
-        // Event not present so assume no wireless instance is present
-        // 
-		if (error == ERROR_NOT_FOUND || error == ERROR_FILE_NOT_FOUND)
-		{
-			return;
-		}
-
-		TraceError(
-			TRACE_DSUSB,
-			"OpenEventW failed with %!WINERROR!",
-			error
+		TraceInformation(
+			TRACE_DEVICE,
+			"Advertising wired presence: %ls",
+			eventName
 		);
 	}
+
+	FuncExitNoReturn(TRACE_DEVICE);
+}
+
+void
+DsDevice_RevokeWiredPresence(
+	PDEVICE_CONTEXT Context
+)
+{
+	if (Context->Connection.Usb.WiredPresentEvent)
+	{
+		CloseHandle(Context->Connection.Usb.WiredPresentEvent);
+		Context->Connection.Usb.WiredPresentEvent = NULL;
+	}
+}
+
+BOOLEAN
+DsDevice_IsWiredInstancePresent(
+	_In_ PDEVICE_CONTEXT Context
+)
+{
+	WCHAR eventName[DSHM_NAMED_EVENT_NAME_CCH];
+
+	if (!DsDevice_BuildNamedEventName(
+		Context,
+		DSHM_NAMED_EVENT_WIRED_PRESENT,
+		eventName,
+		ARRAYSIZE(eventName)
+	))
+	{
+		return FALSE;
+	}
+
+	const HANDLE wiredPresent = OpenEventW(
+		SYNCHRONIZE,
+		FALSE,
+		eventName
+	);
+
+	if (wiredPresent == NULL)
+	{
+		return FALSE;
+	}
+
+	CloseHandle(wiredPresent);
+	return TRUE;
 }
 
 //
