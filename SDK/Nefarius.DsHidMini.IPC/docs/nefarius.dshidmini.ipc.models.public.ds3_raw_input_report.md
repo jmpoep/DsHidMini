@@ -1,14 +1,14 @@
-# Ds3RawInputReport
+# DS3_RAW_INPUT_REPORT
 
 Namespace: Nefarius.DsHidMini.IPC.Models.Public
 
 Raw input report as it is sent by the SIXAXIS/DualShock 3.
 
 ```csharp
-public struct Ds3RawInputReport
+public struct DS3_RAW_INPUT_REPORT
 ```
 
-Inheritance [Object](https://docs.microsoft.com/en-us/dotnet/api/system.object) → [ValueType](https://docs.microsoft.com/en-us/dotnet/api/system.valuetype) → [Ds3RawInputReport](./nefarius.dshidmini.ipc.models.public.ds3rawinputreport.md)
+Inheritance [Object](https://learn.microsoft.com/dotnet/api/system.object) → [ValueType](https://learn.microsoft.com/dotnet/api/system.valuetype) → [DS3_RAW_INPUT_REPORT](./nefarius.dshidmini.ipc.models.public.ds3_raw_input_report.md)
 
 ## Fields
 

@@ -235,13 +235,19 @@ void DsHidMini_DeviceCleanup(
 	if (driverContext->IPC.IsEnabled)
 	{
 		const size_t offset = (sizeof(IPC_HID_INPUT_REPORT_MESSAGE) * (deviceContext->SlotIndex - 1));
-		const PUCHAR pHIDBuffer = (driverContext->IPC.SharedRegions.HID.Buffer + offset);
+		const PIPC_HID_INPUT_REPORT_MESSAGE pHIDBuffer = (PIPC_HID_INPUT_REPORT_MESSAGE)(
+			driverContext->IPC.SharedRegions.HID.Buffer + offset);
 
-		// zero out the slot so potential readers get notified we're gone
+		//
+		// Publish an empty even-numbered generation so blocked readers wake,
+		// observe SlotIndex == 0, and return instead of waiting out a timeout.
+		// 
 		RtlZeroMemory(pHIDBuffer, sizeof(IPC_HID_INPUT_REPORT_MESSAGE));
+		InterlockedAdd(&pHIDBuffer->SequenceNumber, 2);
 
 		if (deviceContext->IPC.InputReportWaitHandle != NULL)
 		{
+			SetEvent(deviceContext->IPC.InputReportWaitHandle);
 			CloseHandle(deviceContext->IPC.InputReportWaitHandle);
 			deviceContext->IPC.InputReportWaitHandle = NULL;
 		}
@@ -874,7 +880,7 @@ DsDevice_InitContext(
 			break;
 		}
 
-		pDevCtx->IPC.InputReportWaitHandle = CreateEventA(&sa, FALSE, FALSE, hidEventName);
+		pDevCtx->IPC.InputReportWaitHandle = CreateEventA(&sa, TRUE, FALSE, hidEventName);
 
 		LocalFree(sa.lpSecurityDescriptor);
 		sa.lpSecurityDescriptor = NULL;

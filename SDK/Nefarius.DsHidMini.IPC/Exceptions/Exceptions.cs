@@ -65,15 +65,3 @@ public sealed class DsHidMiniInteropInvalidDeviceIndexException : Exception
     {
     }
 }
-
-/// <summary>
-///     Reserved for compatibility; the current SDK does not throw this type. HID report waiting uses named events with
-///     standard IPC DACLs (no handle duplication).
-/// </summary>
-public sealed class DsHidMiniInteropAccessDeniedException : Exception
-{
-    internal DsHidMiniInteropAccessDeniedException() : base(
-        "Reserved; not used by the current SDK.")
-    {
-    }
-}

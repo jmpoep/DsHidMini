@@ -45,6 +45,7 @@ public sealed partial class DsHidMiniInterop : IDisposable
     private MEMORY_MAPPED_VIEW_ADDRESS? _hidView;
 
     private readonly ConcurrentDictionary<int, EventWaitHandle> _inputReportWaitEvents = new();
+    private readonly ConcurrentDictionary<int, int> _lastSeenSequences = new();
 
     private EventWaitHandle? _readEvent;
     private EventWaitHandle? _writeEvent;
@@ -151,7 +152,7 @@ public sealed partial class DsHidMiniInterop : IDisposable
                 systemInfo.dwAllocationGranularity
             );
 
-            if (_cmdView.Value == 0)
+            if (IsNullMappedView(_cmdView))
             {
                 throw new Win32Exception(Marshal.GetLastWin32Error(), "Failed to access command view");
             }
@@ -168,7 +169,7 @@ public sealed partial class DsHidMiniInterop : IDisposable
                 (uint)(systemInfo.dwAllocationGranularity + offsetWithinPage)
             );
 
-            if (_hidView.Value == 0)
+            if (IsNullMappedView(_hidView))
             {
                 throw new Win32Exception(Marshal.GetLastWin32Error(), "Failed to access HID view");
             }
@@ -290,10 +291,12 @@ public sealed partial class DsHidMiniInterop : IDisposable
                 handle.Dispose();
             }
         }
+
+        _lastSeenSequences.Clear();
     }
 
     /// <summary>
-    ///     Returns a cached handle to the driver's named auto-reset event for the given one-based device slot (created with
+    ///     Returns a cached handle to the driver's named manual-reset event for the given one-based device slot (created with
     ///     DACL allowing authenticated users).
     /// </summary>
     /// <remarks>
@@ -325,6 +328,11 @@ public sealed partial class DsHidMiniInterop : IDisposable
         opened.Dispose();
 
         return _inputReportWaitEvents[deviceIndex];
+    }
+
+    private static bool IsNullMappedView(MEMORY_MAPPED_VIEW_ADDRESS? view)
+    {
+        return view is not { } mapped || mapped.Equals(default(MEMORY_MAPPED_VIEW_ADDRESS));
     }
 
     private void AcquireCommandLock()

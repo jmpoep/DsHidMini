@@ -8,7 +8,8 @@ Interface and property information about the DsHidMini driver.
 public static class DsHidMiniDriver
 ```
 
-Inheritance [Object](https://docs.microsoft.com/en-us/dotnet/api/system.object) → [DsHidMiniDriver](./nefarius.dshidmini.ipc.models.drivers.dshidminidriver.md)
+Inheritance [Object](https://learn.microsoft.com/dotnet/api/system.object) → [DsHidMiniDriver](./nefarius.dshidmini.ipc.models.drivers.dshidminidriver.md)<br>
+Attributes [NullableContextAttribute](https://learn.microsoft.com/dotnet/api/system.runtime.compilerservices.nullablecontextattribute), [NullableAttribute](https://learn.microsoft.com/dotnet/api/system.runtime.compilerservices.nullableattribute)
 
 ## Properties
 
@@ -58,7 +59,7 @@ public static Guid DeviceInterfaceGuid { get; }
 
 #### Property Value
 
-[Guid](https://docs.microsoft.com/en-us/dotnet/api/system.guid)<br>
+[Guid](https://learn.microsoft.com/dotnet/api/system.guid)<br>
 
 ### <a id="properties-hiddevicemodeproperty"/>**HidDeviceModeProperty**
 
@@ -78,6 +79,18 @@ The Bluetooth MAC address the device is currently paired to.
 
 ```csharp
 public static DevicePropertyKey HostAddressProperty { get; }
+```
+
+#### Property Value
+
+DevicePropertyKey<br>
+
+### <a id="properties-ipcslotindexproperty"/>**IpcSlotIndexProperty**
+
+One-based driver IPC slot index (`deviceIndex` for shared memory, per-slot events, and IPC `TargetIndex`).
+
+```csharp
+public static DevicePropertyKey IpcSlotIndexProperty { get; }
 ```
 
 #### Property Value

@@ -114,7 +114,7 @@ typedef struct _FFB_ATTRIBUTES
 /**
  * Output report context.
  *
- * @author	Benjamin "Nefarius" Hùglinger-Stelzer
+ * @author	Benjamin "Nefarius" H?glinger-Stelzer
  * @date	01.04.2021
  */
 typedef struct _DS_OUTPUT_REPORT_CONTEXT
@@ -139,7 +139,7 @@ typedef struct _DS_OUTPUT_REPORT_CONTEXT
 /**
  * Cached output report values to help with rate-control.
  *
- * @author	Benjamin "Nefarius" Hùglinger-Stelzer
+ * @author	Benjamin "Nefarius" H?glinger-Stelzer
  * @date	12.03.2021
  */
 typedef struct _DS_OUTPUT_REPORT_CACHE
@@ -401,11 +401,22 @@ typedef struct _IPC_HID_INPUT_REPORT_MESSAGE
 	UINT32 SlotIndex;
 
 	//
+	// Seqlock: odd = write in progress, even = stable snapshot
+	// 
+	volatile LONG SequenceNumber;
+
+	//
 	// Input report copy
 	// 
 	DS3_RAW_INPUT_REPORT InputReport;
 } IPC_HID_INPUT_REPORT_MESSAGE, *PIPC_HID_INPUT_REPORT_MESSAGE;
 #include <poppack.h>
+
+//
+// Packed layout: UINT32 + LONG + 49-byte DS3_RAW_INPUT_REPORT. Must stay in
+// sync with the SDK IPC_HID_INPUT_REPORT_MESSAGE mirror (Pack = 1).
+// 
+C_ASSERT(sizeof(IPC_HID_INPUT_REPORT_MESSAGE) == 57);
 
 //
 // This macro will generate an inline function called DeviceGetContext

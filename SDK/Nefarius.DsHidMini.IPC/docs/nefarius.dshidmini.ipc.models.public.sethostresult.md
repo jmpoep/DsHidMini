@@ -6,7 +6,7 @@ Namespace: Nefarius.DsHidMini.IPC.Models.Public
 public struct SetHostResult
 ```
 
-Inheritance [Object](https://docs.microsoft.com/en-us/dotnet/api/system.object) → [ValueType](https://docs.microsoft.com/en-us/dotnet/api/system.valuetype) → [SetHostResult](./nefarius.dshidmini.ipc.models.public.sethostresult.md)
+Inheritance [Object](https://learn.microsoft.com/dotnet/api/system.object) → [ValueType](https://learn.microsoft.com/dotnet/api/system.valuetype) → [SetHostResult](./nefarius.dshidmini.ipc.models.public.sethostresult.md)
 
 ## Fields
 
@@ -36,4 +36,4 @@ string ToString()
 
 #### Returns
 
-[String](https://docs.microsoft.com/en-us/dotnet/api/system.string)
+[String](https://learn.microsoft.com/dotnet/api/system.string)
