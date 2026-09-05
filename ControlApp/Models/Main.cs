@@ -4,9 +4,18 @@ namespace Nefarius.DsHidMini.ControlApp.Models;
 
 public class Main
 {
-    private static void StartAsAdmin(string fileName)
+    private static void StartAsAdmin(string fileName, string arguments)
     {
-        Process proc = new() { StartInfo = { FileName = fileName, UseShellExecute = true, Verb = "runas" } };
+        Process proc = new()
+        {
+            StartInfo =
+            {
+                FileName = fileName,
+                Arguments = arguments,
+                UseShellExecute = true,
+                Verb = "runas"
+            }
+        };
 
         proc.Start();
     }
@@ -19,7 +28,15 @@ public class Main
         }
 
         Debug.WriteLine("restarting as admin");
-        StartAsAdmin(Environment.ProcessPath!);
-        Application.Current.Shutdown();
+        string token = Guid.NewGuid().ToString("N");
+        using EventWaitHandle ready = SingleInstanceLifetime.CreateHandoffReadyEvent(token);
+        RestartAsAdminFlow.Run(
+            () => StartAsAdmin(
+                Environment.ProcessPath!,
+                SingleInstanceLifetime.HandoffArgumentPrefix + token),
+            Nefarius.DsHidMini.ControlApp.App.ReleaseSingleInstanceOwnership,
+            Nefarius.DsHidMini.ControlApp.App.ReacquireSingleInstanceOwnership,
+            Nefarius.DsHidMini.ControlApp.App.RequestExit,
+            () => ready.WaitOne(TimeSpan.FromSeconds(15)));
     }
 }

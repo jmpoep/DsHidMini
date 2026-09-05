@@ -29,6 +29,15 @@
                 Foreground="{DynamicResource TextFillColorSecondaryBrush}"
                 Text="When enabled, DsHidMini requests a device restart on its own if the HID mode it loaded from configuration doesn't match the mode already probed by Windows, instead of requiring a manual reconnect or a second replug."
                 TextWrapping="Wrap" />
+            <CheckBox
+                Margin="0,16,0,8"
+                Content="Minimize to tray"
+                IsChecked="{Binding ViewModel.MinimizeToTray, Mode=TwoWay}" />
+            <TextBlock
+                MaxWidth="600"
+                Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                Text="When enabled, Minimize and Close hide ControlApp to the notification area. Open the window from the tray icon, or choose Exit to quit."
+                TextWrapping="Wrap" />
         </StackPanel>
     </Grid>
 </Page>

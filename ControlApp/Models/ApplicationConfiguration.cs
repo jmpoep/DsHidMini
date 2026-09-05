@@ -12,7 +12,7 @@ public class ApplicationConfiguration
         new(() => JsonApplicationConfiguration
             .Load<ApplicationConfiguration>(
                 GlobalConfigFileName,
-                false)!);
+                true)!);
 
     /// <summary>
     ///     JSON (and schema) file name holding global configuration values.
@@ -39,6 +39,31 @@ public class ApplicationConfiguration
     /// </summary>
     public bool HasAcknowledgedDonationDialog { get; set; } = false;
 
+    private bool _minimizeToTray;
+
+    /// <summary>
+    ///     When true, Minimize and Close hide the window to the system tray instead of exiting.
+    /// </summary>
+    public bool MinimizeToTray
+    {
+        get => _minimizeToTray;
+        set
+        {
+            if (_minimizeToTray == value)
+            {
+                return;
+            }
+
+            _minimizeToTray = value;
+            MinimizeToTrayChanged?.Invoke(this, EventArgs.Empty);
+        }
+    }
+
+    /// <summary>
+    ///     Raised when <see cref="MinimizeToTray" /> changes.
+    /// </summary>
+    public event EventHandler? MinimizeToTrayChanged;
+
     /// <summary>
     ///     Singleton instance of app configuration.
     /// </summary>
@@ -55,6 +80,6 @@ public class ApplicationConfiguration
         JsonApplicationConfiguration.Save(
             GlobalConfigFileName,
             this,
-            false);
+            true);
     }
 }

@@ -25,6 +25,38 @@ namespace Nefarius.DsHidMini.ControlApp;
 /// </summary>
 public partial class App
 {
+    private static SingleInstanceLifetime? _singleInstance;
+    private static CancellationTokenSource? _showWindowListenCts;
+    private static bool _hostStarted;
+
+    /// <summary>
+    ///     True once a real shutdown has been requested (tray Exit, Restart as Admin, or Windows session end).
+    /// </summary>
+    public static bool IsExiting { get; private set; }
+
+    /// <summary>
+    ///     Exit the process even when minimize-to-tray is enabled.
+    /// </summary>
+    public static void RequestExit()
+    {
+        IsExiting = true;
+        Current.Shutdown();
+    }
+
+    /// <summary>
+    ///     Releases the single-instance mutex so a replacement process can become primary
+    ///     before this process shuts down.
+    /// </summary>
+    public static void ReleaseSingleInstanceOwnership()
+    {
+        _singleInstance?.ReleaseOwnership();
+    }
+
+    public static void ReacquireSingleInstanceOwnership()
+    {
+        _singleInstance?.ReacquireOwnership();
+    }
+
     // The.NET Generic Host provides dependency injection, configuration, logging, and other services.
     // https://docs.microsoft.com/dotnet/core/extensions/generic-host
     // https://docs.microsoft.com/dotnet/core/extensions/dependency-injection
@@ -92,8 +124,43 @@ public partial class App
     /// </summary>
     private void OnStartup(object sender, StartupEventArgs e)
     {
+        if (SingleInstanceLifetime.TryParseHandoffToken(e.Args, out string? handoffToken))
+        {
+            try
+            {
+                _singleInstance = SingleInstanceLifetime.TryAdoptAfterHandoff(
+                    SingleInstanceLifetime.MutexName,
+                    SingleInstanceLifetime.ShowWindowEventName,
+                    handoffToken,
+                    TimeSpan.FromSeconds(15));
+            }
+            catch (Exception ex)
+            {
+                Log.Logger.Error(ex, "Failed to adopt single-instance ownership after elevation handoff.");
+            }
+
+            if (_singleInstance is null)
+            {
+                Shutdown();
+                return;
+            }
+        }
+        else
+        {
+            _singleInstance = new SingleInstanceLifetime();
+
+            if (!_singleInstance.IsPrimary)
+            {
+                _singleInstance.ShowWindowEvent.Set();
+                Shutdown();
+                return;
+            }
+        }
+
         Log.Logger.Information("App startup");
         AppHost.Start();
+        _hostStarted = true;
+        StartListeningForActivation();
     }
 
     /// <summary>
@@ -102,8 +169,20 @@ public partial class App
     private async void OnExit(object sender, ExitEventArgs e)
     {
         Log.Logger.Information("App exiting");
-        await AppHost.StopAsync();
-        AppHost.Dispose();
+        _showWindowListenCts?.Cancel();
+        _singleInstance?.Dispose();
+        _singleInstance = null;
+
+        if (_hostStarted)
+        {
+            await AppHost.StopAsync();
+            AppHost.Dispose();
+        }
+    }
+
+    private void OnSessionEnding(object sender, SessionEndingCancelEventArgs e)
+    {
+        IsExiting = true;
     }
 
     /// <summary>
@@ -114,5 +193,37 @@ public partial class App
         // For more info see https://docs.microsoft.com/en-us/dotnet/api/system.windows.application.dispatcherunhandledexception?view=windowsdesktop-6.0
 
         Log.Logger.Fatal(e.Exception, "Unhandled exception");
+    }
+
+    private static void StartListeningForActivation()
+    {
+        EventWaitHandle showWindowEvent = _singleInstance!.ShowWindowEvent;
+        _showWindowListenCts = new CancellationTokenSource();
+        CancellationToken token = _showWindowListenCts.Token;
+        _ = Task.Factory.StartNew(() =>
+        {
+            while (!token.IsCancellationRequested)
+            {
+                try
+                {
+                    if (showWindowEvent.WaitOne(TimeSpan.FromMilliseconds(500)))
+                    {
+                        Current.Dispatcher.Invoke(ActivateMainWindow, DispatcherPriority.Normal);
+                    }
+                }
+                catch (ObjectDisposedException)
+                {
+                    break;
+                }
+            }
+        }, token, TaskCreationOptions.LongRunning, TaskScheduler.Default);
+    }
+
+    internal static void ActivateMainWindow()
+    {
+        if (AppHost.Services.GetService(typeof(MainWindow)) is MainWindow window)
+        {
+            window.RestoreFromTray();
+        }
     }
 }
