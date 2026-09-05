@@ -25,11 +25,7 @@ namespace Nefarius.DsHidMini.ControlApp;
 /// </summary>
 public partial class App
 {
-    private const string SingleInstanceMutexName = "Nefarius.DsHidMini.ControlApp.SingleInstance";
-    private const string ShowWindowEventName = "Nefarius.DsHidMini.ControlApp.ShowWindow";
-
-    private static Mutex? _singleInstanceMutex;
-    private static EventWaitHandle? _showWindowEvent;
+    private static SingleInstanceLifetime? _singleInstance;
     private static CancellationTokenSource? _showWindowListenCts;
     private static bool _hostStarted;
 
@@ -45,6 +41,15 @@ public partial class App
     {
         IsExiting = true;
         Current.Shutdown();
+    }
+
+    /// <summary>
+    ///     Releases the single-instance mutex so a replacement process can become primary
+    ///     before this process shuts down.
+    /// </summary>
+    public static void ReleaseSingleInstanceOwnership()
+    {
+        _singleInstance?.ReleaseOwnership();
     }
 
     // The.NET Generic Host provides dependency injection, configuration, logging, and other services.
@@ -114,12 +119,11 @@ public partial class App
     /// </summary>
     private void OnStartup(object sender, StartupEventArgs e)
     {
-        _singleInstanceMutex = new Mutex(true, SingleInstanceMutexName, out bool createdNew);
-        _showWindowEvent = new EventWaitHandle(false, EventResetMode.AutoReset, ShowWindowEventName);
+        _singleInstance = new SingleInstanceLifetime();
 
-        if (!createdNew)
+        if (!_singleInstance.IsPrimary)
         {
-            _showWindowEvent.Set();
+            _singleInstance.ShowWindowEvent.Set();
             Shutdown();
             return;
         }
@@ -137,20 +141,8 @@ public partial class App
     {
         Log.Logger.Information("App exiting");
         _showWindowListenCts?.Cancel();
-        _showWindowEvent?.Dispose();
-        if (_singleInstanceMutex is not null)
-        {
-            try
-            {
-                _singleInstanceMutex.ReleaseMutex();
-            }
-            catch (ApplicationException)
-            {
-                // Not owned (second instance exiting after signaling the first).
-            }
-
-            _singleInstanceMutex.Dispose();
-        }
+        _singleInstance?.Dispose();
+        _singleInstance = null;
 
         if (_hostStarted)
         {
@@ -176,6 +168,7 @@ public partial class App
 
     private static void StartListeningForActivation()
     {
+        EventWaitHandle showWindowEvent = _singleInstance!.ShowWindowEvent;
         _showWindowListenCts = new CancellationTokenSource();
         CancellationToken token = _showWindowListenCts.Token;
         _ = Task.Factory.StartNew(() =>
@@ -184,7 +177,7 @@ public partial class App
             {
                 try
                 {
-                    if (_showWindowEvent!.WaitOne(TimeSpan.FromMilliseconds(500)))
+                    if (showWindowEvent.WaitOne(TimeSpan.FromMilliseconds(500)))
                     {
                         Current.Dispatcher.Invoke(ActivateMainWindow, DispatcherPriority.Normal);
                     }

@@ -19,7 +19,9 @@ public class Main
         }
 
         Debug.WriteLine("restarting as admin");
-        StartAsAdmin(Environment.ProcessPath!);
-        Nefarius.DsHidMini.ControlApp.App.RequestExit();
+        RestartAsAdminFlow.Run(
+            Nefarius.DsHidMini.ControlApp.App.ReleaseSingleInstanceOwnership,
+            () => StartAsAdmin(Environment.ProcessPath!),
+            Nefarius.DsHidMini.ControlApp.App.RequestExit);
     }
 }
