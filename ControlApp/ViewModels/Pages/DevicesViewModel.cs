@@ -210,7 +210,6 @@ public partial class DevicesViewModel : ObservableObject, INavigationAware
             int generation = Interlocked.Increment(ref _refreshGeneration);
             try
             {
-                BthPs3.Refresh();
                 string? selectedAddress = SelectedDevice?.DeviceAddress;
                 SelectedDevice = null;
                 List<DeviceViewModel> previous = Devices.ToList();

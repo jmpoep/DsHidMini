@@ -64,10 +64,16 @@ internal static class BthPS3Setup
     public static Version? SetupVersion => ReadSetupRegistryVersion("Version");
 
     /// <summary>
-    ///     True when the profile driver version meets the DsHidMini minimum.
+    ///     Best available installed version: profile driver, then setup package, then filter driver.
+    /// </summary>
+    public static Version? InstalledVersion =>
+        ProfileDriverVersion ?? SetupVersion ?? FilterDriverVersion;
+
+    /// <summary>
+    ///     True when the resolved installed version meets the DsHidMini minimum.
     /// </summary>
     public static bool IsVersionSupported =>
-        ProfileDriverVersion is { } version && version >= MinimumSupportedVersion;
+        InstalledVersion is { } version && version >= MinimumSupportedVersion;
 
     private static Version? ReadFileVersion(string path)
     {

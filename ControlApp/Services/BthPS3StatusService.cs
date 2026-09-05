@@ -67,11 +67,6 @@ public partial class BthPS3StatusService : ObservableObject
     [ObservableProperty]
     private string _statusTitle = string.Empty;
 
-    public BthPS3StatusService()
-    {
-        Refresh();
-    }
-
     /// <summary>
     ///     Re-reads radio, install, version, PSM, and RawPDO state.
     /// </summary>
@@ -90,11 +85,8 @@ public partial class BthPS3StatusService : ObservableObject
         }
 
         IsInstalled = BthPS3Setup.IsInstalled;
-        InstalledVersion = BthPS3Setup.ProfileDriverVersion
-                           ?? BthPS3Setup.SetupVersion
-                           ?? BthPS3Setup.FilterDriverVersion;
-        IsVersionSupported = InstalledVersion is { } version &&
-                             version >= BthPS3Setup.MinimumSupportedVersion;
+        InstalledVersion = BthPS3Setup.InstalledVersion;
+        IsVersionSupported = BthPS3Setup.IsVersionSupported;
 
         try
         {
