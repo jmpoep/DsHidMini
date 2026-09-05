@@ -130,13 +130,5 @@ public partial class MainWindowViewModel : ObservableObject
             }
         }
     }
-
-    public void RefreshProperties()
-    {
-        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs("IsFilterEnabled"));
-        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs("IsRawPDODisabled"));
-        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs("AreBthPS3SettingsIncorrect"));
-        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs("AreBthPS3SettingsCorrect"));
-    }
     */
 }

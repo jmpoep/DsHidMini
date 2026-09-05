@@ -18,7 +18,7 @@
     <Page.Resources>
     </Page.Resources>
 
-    <Grid>
+    <ScrollViewer VerticalScrollBarVisibility="Auto">
         <StackPanel Margin="20">
             <CheckBox
                 Margin="0,0,0,8"
@@ -38,6 +38,52 @@
                 Foreground="{DynamicResource TextFillColorSecondaryBrush}"
                 Text="When enabled, Minimize and Close hide ControlApp to the notification area. Open the window from the tray icon, or choose Exit to quit."
                 TextWrapping="Wrap" />
+
+            <ui:TextBlock
+                Margin="0,28,0,8"
+                FontTypography="Subtitle"
+                Text="Bluetooth (BthPS3)" />
+            <ui:InfoBar
+                Title="{Binding ViewModel.BthPs3.StatusTitle}"
+                IsClosable="False"
+                IsOpen="True"
+                Message="{Binding ViewModel.BthPs3.StatusMessage}"
+                Severity="{Binding ViewModel.BthPs3.Severity}" />
+            <TextBlock
+                Margin="0,12,0,4"
+                Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                Text="{Binding ViewModel.BthPs3.InstalledVersionDisplay, StringFormat=Installed version: {0}}" />
+            <TextBlock
+                Margin="0,0,0,4"
+                Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                Text="{Binding ViewModel.BthPs3.RequiredVersionDisplay, StringFormat=Required version: {0}+}" />
+            <TextBlock
+                Margin="0,0,0,4"
+                Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                Text="{Binding ViewModel.BthPs3.PsmPatchingDisplay, StringFormat=PSM patching: {0}}" />
+            <TextBlock
+                Margin="0,0,0,12"
+                Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                Text="{Binding ViewModel.BthPs3.RawPdoDisplay, StringFormat=RAW PDO: {0}}" />
+            <StackPanel Margin="0,0,0,8" Orientation="Horizontal">
+                <ui:Button
+                    Margin="0,0,8,0"
+                    Command="{Binding ViewModel.RectifyBthPs3SettingsCommand}"
+                    Content="Fix settings"
+                    IsEnabled="{Binding ViewModel.BthPs3.CanRectifySettings}" />
+                <ui:Button Command="{Binding ViewModel.RefreshBthPs3Command}" Content="Refresh" />
+            </StackPanel>
+            <StackPanel Orientation="Horizontal">
+                <ui:HyperlinkButton
+                    Margin="0,0,8,0"
+                    Content="Download BthPS3"
+                    Icon="{ui:SymbolIcon ArrowDownload24}"
+                    NavigateUri="https://github.com/nefarius/BthPS3/releases/latest" />
+                <ui:HyperlinkButton
+                    Content="Open online help"
+                    Icon="{ui:SymbolIcon QuestionCircle24}"
+                    NavigateUri="https://docs.nefarius.at/projects/BthPS3/" />
+            </StackPanel>
         </StackPanel>
-    </Grid>
+    </ScrollViewer>
 </Page>
