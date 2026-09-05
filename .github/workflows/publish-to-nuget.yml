@@ -37,6 +37,11 @@ jobs:
         with:
           dotnet-version: '10.0.x'
 
+      - name: 'Modify README.md for NuGet'
+        shell: bash
+        run: |
+          sed -i 's/# <img[^>]*>/# /' SDK/Nefarius.DsHidMini.IPC/README.md
+
       - name: 'Pack'
         run: dotnet pack SDK/Nefarius.DsHidMini.IPC -c Release -o artifacts
 
