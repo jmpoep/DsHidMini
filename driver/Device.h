@@ -5,12 +5,20 @@
 EXTERN_C_START
 
 #define DSHM_NAMED_EVENT_DISCONNECT			L"Global\\DsHidMiniDisconnectEvent%ls"
-#define DSHM_NAMED_EVENT_WIRED_PRESENT		L"Global\\DsHidMiniWiredPresent%ls"
+#define DSHM_NAMED_MUTEX_DISCONNECT			L"Global\\DsHidMiniDisconnectLock%ls"
+
+//
+// Local System, Local Service (WUDFHost), and Administrators only.
+// Authenticated users must not be able to signal or spoof these objects.
+// 
+#define DSHM_HOST_NAMED_OBJECT_SDDL \
+	TEXT("D:(A;;0x001F0003;;;SY)(A;;0x001F0003;;;LS)(A;;0x001F0003;;;BA)")
 
 #define DSHM_DEVICE_ADDRESS_CCH				13
 #define DSHM_NAMED_EVENT_NAME_CCH			64
 #define DSHM_BTH_DISCONNECT_RETRY_COUNT		3
 #define DSHM_BTH_DISCONNECT_RETRY_DELAY_MS	300
+#define DSHM_BTH_DISCONNECT_LOCK_TIMEOUT_MS	2000
 
 struct USB_DEVICE_CONTEXT
 {
@@ -48,12 +56,6 @@ struct USB_DEVICE_CONTEXT
 	// Timestamp to calculate charging cycle state change
 	// 
 	LARGE_INTEGER ChargingCycleTimestamp;
-
-	//
-	// Named event advertised while this wired instance is live so a
-	// same-MAC wireless instance can yield (see issue #330).
-	// 
-	HANDLE WiredPresentEvent;
 
 	//
 	// Retries signalling the wireless instance when it has not created
@@ -554,16 +556,6 @@ DsDevice_FormatCanonicalAddress(
 	_In_ PDEVICE_CONTEXT Context,
 	_Out_writes_(BufferChars) PWCHAR Buffer,
 	_In_ size_t BufferChars
-);
-
-void
-DsDevice_AdvertiseWiredPresence(
-	PDEVICE_CONTEXT Context
-);
-
-void
-DsDevice_RevokeWiredPresence(
-	PDEVICE_CONTEXT Context
 );
 
 BOOLEAN

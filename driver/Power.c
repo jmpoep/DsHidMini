@@ -133,8 +133,6 @@ DsHidMini_EvtDeviceReleaseHardware(
 			pDevCtx->Connection.Usb.DisconnectRetryRemaining = 0;
 		}
 
-		DsDevice_RevokeWiredPresence(pDevCtx);
-
 		if (pDevCtx->Connection.Usb.InterruptInPipe != NULL)
 		{
 			TraceVerbose(

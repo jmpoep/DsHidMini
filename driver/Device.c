@@ -3,6 +3,7 @@
 #include <DmfModule.h>
 #include <devpkey.h>
 #include <sddl.h>
+#include <cfgmgr32.h>
 
 
 EVT_DMF_DEVICE_MODULES_ADD DmfDeviceModulesAdd;
@@ -254,11 +255,6 @@ void DsHidMini_DeviceCleanup(
 		}
 	}
 	WdfWaitLockRelease(driverContext->SlotsLock);
-
-	if (deviceContext->ConnectionType == DsDeviceConnectionTypeUsb)
-	{
-		DsDevice_RevokeWiredPresence(deviceContext);
-	}
 
 	if (deviceContext->ConnectionType == DsDeviceConnectionTypeBth)
 	{
@@ -1226,28 +1222,47 @@ DsDevice_BuildNamedEventName(
 	return swprintf_s(EventName, EventNameChars, Format, deviceAddress) > 0;
 }
 
+static BOOLEAN
+DsDevice_CreateHostSecurityAttributes(
+	_Out_ PSECURITY_ATTRIBUTES SecurityAttributes
+)
+{
+	SecurityAttributes->nLength = sizeof(*SecurityAttributes);
+	SecurityAttributes->bInheritHandle = FALSE;
+	SecurityAttributes->lpSecurityDescriptor = NULL;
+
+	if (!ConvertStringSecurityDescriptorToSecurityDescriptor(
+		DSHM_HOST_NAMED_OBJECT_SDDL,
+		SDDL_REVISION_1,
+		&SecurityAttributes->lpSecurityDescriptor,
+		NULL
+	))
+	{
+		EventWriteFailedWithWin32Error(__FUNCTION__, L"ConvertStringSecurityDescriptorToSecurityDescriptor", GetLastError());
+		return FALSE;
+	}
+
+	return TRUE;
+}
+
 static HANDLE
 DsDevice_CreateSharedNamedEvent(
 	_In_ PCWSTR EventName,
 	_In_ BOOLEAN ManualReset,
-	_In_ BOOLEAN InitialState
+	_In_ BOOLEAN InitialState,
+	_Out_opt_ PDWORD CreateError
 )
 {
 	SECURITY_ATTRIBUTES sa;
 	HANDLE event;
 
-	sa.nLength = sizeof(SECURITY_ATTRIBUTES);
-	sa.bInheritHandle = FALSE;
-	sa.lpSecurityDescriptor = NULL;
-
-	if (!ConvertStringSecurityDescriptorToSecurityDescriptor(
-		TEXT("D:(A;;0x001F0003;;;BA)(A;;0x00100002;;;AU)"),
-		SDDL_REVISION_1,
-		&sa.lpSecurityDescriptor,
-		NULL
-	))
+	if (CreateError)
 	{
-		EventWriteFailedWithWin32Error(__FUNCTION__, L"ConvertStringSecurityDescriptorToSecurityDescriptor", GetLastError());
+		*CreateError = 0;
+	}
+
+	if (!DsDevice_CreateHostSecurityAttributes(&sa))
+	{
 		return NULL;
 	}
 
@@ -1262,23 +1277,74 @@ DsDevice_CreateSharedNamedEvent(
 
 	LocalFree(sa.lpSecurityDescriptor);
 
+	if (CreateError)
+	{
+		*CreateError = createError;
+	}
+
 	if (event == NULL)
 	{
 		SetLastError(createError);
 		return NULL;
 	}
 
-	//
-	// CreateEventW ignores bInitialState when the named object already
-	// exists. A leaked, still-signaled disconnect event would immediately
-	// fire the new waiter (issue #330), so reset it back to unsignaled.
-	// 
-	if (createError == ERROR_ALREADY_EXISTS && !InitialState)
+	return event;
+}
+
+static HANDLE
+DsDevice_AcquireDisconnectHandshake(
+	_In_ PDEVICE_CONTEXT Context
+)
+{
+	WCHAR mutexName[DSHM_NAMED_EVENT_NAME_CCH];
+	SECURITY_ATTRIBUTES sa;
+	HANDLE mutex;
+	DWORD waitResult;
+
+	if (!DsDevice_BuildNamedEventName(
+		Context,
+		DSHM_NAMED_MUTEX_DISCONNECT,
+		mutexName,
+		ARRAYSIZE(mutexName)
+	))
 	{
-		ResetEvent(event);
+		return NULL;
 	}
 
-	return event;
+	if (!DsDevice_CreateHostSecurityAttributes(&sa))
+	{
+		return NULL;
+	}
+
+	mutex = CreateMutexW(&sa, FALSE, mutexName);
+	LocalFree(sa.lpSecurityDescriptor);
+
+	if (mutex == NULL)
+	{
+		EventWriteFailedWithWin32Error(__FUNCTION__, L"CreateMutexW", GetLastError());
+		return NULL;
+	}
+
+	waitResult = WaitForSingleObject(mutex, DSHM_BTH_DISCONNECT_LOCK_TIMEOUT_MS);
+	if (waitResult != WAIT_OBJECT_0 && waitResult != WAIT_ABANDONED)
+	{
+		CloseHandle(mutex);
+		return NULL;
+	}
+
+	return mutex;
+}
+
+static void
+DsDevice_ReleaseDisconnectHandshake(
+	_In_opt_ HANDLE Mutex
+)
+{
+	if (Mutex)
+	{
+		ReleaseMutex(Mutex);
+		CloseHandle(Mutex);
+	}
 }
 
 static BOOLEAN
@@ -1287,6 +1353,7 @@ DsDevice_TrySignalBthDisconnect(
 )
 {
 	WCHAR dcEventName[DSHM_NAMED_EVENT_NAME_CCH];
+	BOOLEAN signaled = FALSE;
 
 	if (!DsDevice_BuildNamedEventName(
 		Context,
@@ -1297,6 +1364,8 @@ DsDevice_TrySignalBthDisconnect(
 	{
 		return FALSE;
 	}
+
+	const HANDLE handshake = DsDevice_AcquireDisconnectHandshake(Context);
 
 	const HANDLE dcEvent = OpenEventW(
 		SYNCHRONIZE | EVENT_MODIFY_STATE,
@@ -1316,22 +1385,26 @@ DsDevice_TrySignalBthDisconnect(
 
 		SetEvent(dcEvent);
 		CloseHandle(dcEvent);
-		return TRUE;
+		signaled = TRUE;
 	}
-
-	const DWORD error = GetLastError();
-
-	if (error != ERROR_NOT_FOUND && error != ERROR_FILE_NOT_FOUND)
+	else
 	{
-		TraceError(
-			TRACE_DSUSB,
-			"OpenEventW failed with %!WINERROR!",
-			error
-		);
-		EventWriteFailedWithWin32Error(__FUNCTION__, L"OpenEventW", error);
+		const DWORD error = GetLastError();
+
+		if (error != ERROR_NOT_FOUND && error != ERROR_FILE_NOT_FOUND)
+		{
+			TraceError(
+				TRACE_DSUSB,
+				"OpenEventW failed with %!WINERROR!",
+				error
+			);
+			EventWriteFailedWithWin32Error(__FUNCTION__, L"OpenEventW", error);
+		}
 	}
 
-	return FALSE;
+	DsDevice_ReleaseDisconnectHandshake(handshake);
+
+	return signaled;
 }
 
 //
@@ -1376,21 +1449,36 @@ void DsDevice_RegisterBthDisconnectListener(PDEVICE_CONTEXT Context)
 		Context->Connection.Bth.DisconnectEvent = NULL;
 	}
 
+	const HANDLE handshake = DsDevice_AcquireDisconnectHandshake(Context);
+	DWORD createError = 0;
+
 	Context->Connection.Bth.DisconnectEvent = DsDevice_CreateSharedNamedEvent(
 		dcEventName,
 		FALSE,
-		FALSE
+		FALSE,
+		&createError
 	);
 
 	if (Context->Connection.Bth.DisconnectEvent == NULL)
 	{
+		DsDevice_ReleaseDisconnectHandshake(handshake);
 		TraceError(
 			TRACE_DEVICE,
 			"Failed to create disconnect event"
 		);
-		EventWriteFailedWithWin32Error(__FUNCTION__, L"CreateEventW", GetLastError());
+		EventWriteFailedWithWin32Error(__FUNCTION__, L"CreateEventW", createError);
 		FuncExitNoReturn(TRACE_DEVICE);
 		return;
+	}
+
+	//
+	// CreateEventW ignores bInitialState when the named object already
+	// exists. Reset under the same lock as SetEvent so a concurrent USB
+	// signal cannot be cleared before the waiter is registered.
+	// 
+	if (createError == ERROR_ALREADY_EXISTS)
+	{
+		ResetEvent(Context->Connection.Bth.DisconnectEvent);
 	}
 
 	const BOOL ret = RegisterWaitForSingleObject(
@@ -1401,6 +1489,8 @@ void DsDevice_RegisterBthDisconnectListener(PDEVICE_CONTEXT Context)
 		INFINITE,
 		WT_EXECUTELONGFUNCTION
 	);
+
+	DsDevice_ReleaseDisconnectHandshake(handshake);
 
 	if (!ret)
 	{
@@ -1484,101 +1574,111 @@ DsDevice_EvtBthDisconnectRetryTimerFunc(
 	FuncExitNoReturn(TRACE_DEVICE);
 }
 
-void
-DsDevice_AdvertiseWiredPresence(
-	PDEVICE_CONTEXT Context
-)
-{
-	WCHAR eventName[DSHM_NAMED_EVENT_NAME_CCH];
-
-	FuncEntry(TRACE_DEVICE);
-
-	if (!DsDevice_BuildNamedEventName(
-		Context,
-		DSHM_NAMED_EVENT_WIRED_PRESENT,
-		eventName,
-		ARRAYSIZE(eventName)
-	))
-	{
-		FuncExitNoReturn(TRACE_DEVICE);
-		return;
-	}
-
-	if (Context->Connection.Usb.WiredPresentEvent)
-	{
-		CloseHandle(Context->Connection.Usb.WiredPresentEvent);
-		Context->Connection.Usb.WiredPresentEvent = NULL;
-	}
-
-	Context->Connection.Usb.WiredPresentEvent = DsDevice_CreateSharedNamedEvent(
-		eventName,
-		TRUE,
-		TRUE
-	);
-
-	if (Context->Connection.Usb.WiredPresentEvent == NULL)
-	{
-		TraceError(
-			TRACE_DEVICE,
-			"Failed to create wired-present event %ls",
-			eventName
-		);
-		EventWriteFailedWithWin32Error(__FUNCTION__, L"CreateEventW", GetLastError());
-	}
-	else
-	{
-		TraceInformation(
-			TRACE_DEVICE,
-			"Advertising wired presence: %ls",
-			eventName
-		);
-	}
-
-	FuncExitNoReturn(TRACE_DEVICE);
-}
-
-void
-DsDevice_RevokeWiredPresence(
-	PDEVICE_CONTEXT Context
-)
-{
-	if (Context->Connection.Usb.WiredPresentEvent)
-	{
-		CloseHandle(Context->Connection.Usb.WiredPresentEvent);
-		Context->Connection.Usb.WiredPresentEvent = NULL;
-	}
-}
-
 BOOLEAN
 DsDevice_IsWiredInstancePresent(
 	_In_ PDEVICE_CONTEXT Context
 )
 {
-	WCHAR eventName[DSHM_NAMED_EVENT_NAME_CCH];
+	WCHAR expectedAddress[DSHM_DEVICE_ADDRESS_CCH];
+	ULONG listChars = 0;
+	PWSTR list = NULL;
+	BOOLEAN present = FALSE;
 
-	if (!DsDevice_BuildNamedEventName(
-		Context,
-		DSHM_NAMED_EVENT_WIRED_PRESENT,
-		eventName,
-		ARRAYSIZE(eventName)
-	))
+	DsDevice_FormatCanonicalAddress(Context, expectedAddress, ARRAYSIZE(expectedAddress));
+	if (expectedAddress[0] == L'\0')
 	{
 		return FALSE;
 	}
 
-	const HANDLE wiredPresent = OpenEventW(
-		SYNCHRONIZE,
-		FALSE,
-		eventName
-	);
-
-	if (wiredPresent == NULL)
+	if (CM_Get_Device_Interface_List_SizeW(
+		&listChars,
+		(LPGUID)&GUID_DEVINTERFACE_DSHIDMINI,
+		NULL,
+		CM_GET_DEVICE_INTERFACE_LIST_PRESENT) != CR_SUCCESS
+		|| listChars <= 1)
 	{
 		return FALSE;
 	}
 
-	CloseHandle(wiredPresent);
-	return TRUE;
+	list = (PWSTR)HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, listChars * sizeof(WCHAR));
+	if (list == NULL)
+	{
+		return FALSE;
+	}
+
+	if (CM_Get_Device_Interface_ListW(
+		(LPGUID)&GUID_DEVINTERFACE_DSHIDMINI,
+		NULL,
+		list,
+		listChars,
+		CM_GET_DEVICE_INTERFACE_LIST_PRESENT) != CR_SUCCESS)
+	{
+		HeapFree(GetProcessHeap(), 0, list);
+		return FALSE;
+	}
+
+	for (PWSTR iface = list; *iface; iface += wcslen(iface) + 1)
+	{
+		DEVPROPTYPE propType;
+		WCHAR instanceId[MAX_DEVICE_ID_LEN];
+		WCHAR enumerator[32];
+		WCHAR address[DSHM_DEVICE_ADDRESS_CCH];
+		ULONG size;
+		DEVINST devInst;
+
+		size = sizeof(instanceId);
+		if (CM_Get_Device_Interface_PropertyW(
+			iface,
+			&DEVPKEY_Device_InstanceId,
+			&propType,
+			(PBYTE)instanceId,
+			&size,
+			0) != CR_SUCCESS)
+		{
+			continue;
+		}
+
+		if (CM_Locate_DevNodeW(&devInst, instanceId, CM_LOCATE_DEVNODE_NORMAL) != CR_SUCCESS)
+		{
+			continue;
+		}
+
+		size = sizeof(enumerator);
+		if (CM_Get_DevNode_PropertyW(
+			devInst,
+			&DEVPKEY_Device_EnumeratorName,
+			&propType,
+			(PBYTE)enumerator,
+			&size,
+			0) != CR_SUCCESS
+			|| propType != DEVPROP_TYPE_STRING
+			|| _wcsicmp(enumerator, L"USB") != 0)
+		{
+			continue;
+		}
+
+		size = sizeof(address);
+		if (CM_Get_DevNode_PropertyW(
+			devInst,
+			&DEVPKEY_Bluetooth_DeviceAddress,
+			&propType,
+			(PBYTE)address,
+			&size,
+			0) != CR_SUCCESS
+			|| propType != DEVPROP_TYPE_STRING)
+		{
+			continue;
+		}
+
+		if (_wcsicmp(address, expectedAddress) == 0)
+		{
+			present = TRUE;
+			break;
+		}
+	}
+
+	HeapFree(GetProcessHeap(), 0, list);
+	return present;
 }
 
 //

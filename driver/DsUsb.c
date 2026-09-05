@@ -530,10 +530,10 @@ NTSTATUS DsUsb_PrepareHardware(WDFDEVICE Device)
 #pragma endregion
 
 		//
-		// Advertise that a wired instance of this MAC is live, then ask any
-		// existing wireless instance to disconnect (issue #330).
+		// Ask any existing wireless instance of this MAC to disconnect
+		// (issue #330). Wired presence is discovered via PnP, not a
+		// named event.
 		// 
-		DsDevice_AdvertiseWiredPresence(pDevCtx);
 		DsDevice_InvokeLocalBthDisconnect(pDevCtx);
 
 #pragma region Request host BTH address
