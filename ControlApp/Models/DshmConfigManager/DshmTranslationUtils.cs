@@ -350,6 +350,7 @@ public class DshmManagerToDriverConversion
         merged.DevicePairingMode = overlay.DevicePairingMode ?? merged.DevicePairingMode;
         merged.PairOnHotReload = overlay.PairOnHotReload ?? merged.PairOnHotReload;
         merged.CustomPairingAddress = overlay.CustomPairingAddress ?? merged.CustomPairingAddress;
+        merged.UsbOutputReportTransport = overlay.UsbOutputReportTransport ?? merged.UsbOutputReportTransport;
         merged.DisableWirelessIdleTimeout = overlay.DisableWirelessIdleTimeout ?? merged.DisableWirelessIdleTimeout;
         merged.IsOutputRateControlEnabled = overlay.IsOutputRateControlEnabled ?? merged.IsOutputRateControlEnabled;
         merged.OutputRateControlPeriodMs = overlay.OutputRateControlPeriodMs ?? merged.OutputRateControlPeriodMs;
@@ -562,6 +563,7 @@ public class DshmManagerToDriverConversion
         clone.DevicePairingMode = source.DevicePairingMode;
         clone.PairOnHotReload = source.PairOnHotReload;
         clone.CustomPairingAddress = source.CustomPairingAddress;
+        clone.UsbOutputReportTransport = source.UsbOutputReportTransport;
         return clone;
     }
 

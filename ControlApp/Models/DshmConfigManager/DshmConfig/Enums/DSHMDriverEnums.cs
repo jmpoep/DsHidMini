@@ -17,6 +17,16 @@ public enum DevicePairingMode
     Disabled
 }
 
+/// <summary>
+///     Which USB transport is used to send output reports (LEDs/rumble). See issue #321.
+/// </summary>
+public enum UsbOutputReportTransport
+{
+    Auto,
+    InterruptOut,
+    ControlEndpoint
+}
+
 public enum PressureMode
 {
     Digital,

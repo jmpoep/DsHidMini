@@ -143,6 +143,38 @@ static CONST PSTR G_DEVICE_PAIRING_MODE_NAMES[] =
 };
 
 //
+// Which USB transport is used to send output reports (LEDs/rumble). See issue #321:
+// some aftermarket controllers lack a usable interrupt OUT pipe or misbehave on it,
+// so the control endpoint (the same one the PS3 itself uses for its first report)
+// is offered as an alternative.
+// 
+typedef enum
+{
+	//
+	// Use the interrupt OUT pipe if present, otherwise fall back to the control endpoint
+	// 
+	DsUsbOutputReportTransportAuto = 0,
+	//
+	// Always use the interrupt OUT pipe (fails to start if the pipe is missing)
+	// 
+	DsUsbOutputReportTransportInterruptOut,
+	//
+	// Always use SET_REPORT on the control endpoint (EP0)
+	// 
+	DsUsbOutputReportTransportControlEndpoint
+} DS_USB_OUTPUT_REPORT_TRANSPORT, * PDS_USB_OUTPUT_REPORT_TRANSPORT;
+
+//
+// Friendly names for reading from JSON
+// 
+static CONST PSTR G_USB_OUTPUT_REPORT_TRANSPORT_NAMES[] =
+{
+	"Auto",
+	"InterruptOut",
+	"ControlEndpoint"
+};
+
+//
 // Output report processing mode
 // 
 typedef enum
@@ -559,6 +591,12 @@ typedef struct _DS_DRIVER_CONFIGURATION
 	// When set, the pairing process will occur after hot-reloading configurations
 	//
 	BOOLEAN PairOnHotReload;
+
+	//
+	// Which USB transport to use for output reports (LEDs/rumble). Can't be
+	// altered at runtime; only evaluated once during PrepareHardware.
+	// 
+	DS_USB_OUTPUT_REPORT_TRANSPORT UsbOutputReportTransport;
 
 	//
 	// When set, the driver requests a self re-enumeration if the HID mode

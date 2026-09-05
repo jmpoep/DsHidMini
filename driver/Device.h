@@ -48,10 +48,18 @@ struct USB_DEVICE_CONTEXT
 	WDFUSBPIPE InterruptInPipe;
 
 	//
-	// USB Interrupt (out) pipe handle
+	// USB Interrupt (out) pipe handle. NULL if the device does not expose one
+	// (see issue #321); OutputTransport will then be forced to ControlEndpoint.
 	// 
 	WDFUSBPIPE InterruptOutPipe;
-	
+
+	//
+	// Transport actually used to send output reports on this device, resolved
+	// once in DsUsb_PrepareHardware from configuration and pipe availability.
+	// Never Auto at runtime.
+	// 
+	DS_USB_OUTPUT_REPORT_TRANSPORT OutputTransport;
+
 	//
 	// Timestamp to calculate charging cycle state change
 	// 
@@ -292,6 +300,20 @@ typedef struct _DEVICE_CONTEXT
 	// Local device BTH address as hex string
 	// 
 	CHAR DeviceAddressString[(sizeof(BD_ADDR) * 2) + 1];
+
+	//
+	// TRUE if DeviceAddress was not reported by the hardware (GET Feature
+	// 0xF2 failed on all retries) and was synthesized instead. See issue #321.
+	// 
+	BOOLEAN DeviceAddressSynthesized;
+
+	//
+	// TRUE once GET Feature 0xF2 (device address) has succeeded at least once
+	// this power-up. Gates host-address discovery, Bluetooth pairing and the
+	// wireless-instance disconnect signal, none of which are meaningful for a
+	// device that never reported a Bluetooth MAC of its own. See issue #321.
+	// 
+	BOOLEAN SupportsBluetoothAddressReports;
 
 	//
 	// Current reported battery status

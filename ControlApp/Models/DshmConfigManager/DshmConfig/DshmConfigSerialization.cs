@@ -115,6 +115,7 @@ internal static class DshmConfigSerialization
         settings.DevicePairingMode = ReadEnum<DevicePairingMode>(element, "DevicePairingMode");
         settings.PairOnHotReload = ReadBool(element, "PairOnHotReload");
         settings.CustomPairingAddress = ReadString(element, "CustomPairingAddress");
+        settings.UsbOutputReportTransport = ReadEnum<UsbOutputReportTransport>(element, "UsbOutputReportTransport");
         settings.DisableWirelessIdleTimeout = ReadBool(element, "DisableWirelessIdleTimeout");
         settings.IsOutputRateControlEnabled = ReadBool(element, "IsOutputRateControlEnabled");
         settings.OutputRateControlPeriodMs = ReadByte(element, "OutputRateControlPeriodMs");

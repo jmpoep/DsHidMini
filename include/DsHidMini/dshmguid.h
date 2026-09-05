@@ -49,3 +49,9 @@ DEFINE_DEVPROPKEY(DEVPKEY_DsHidMini_RO_LastHostRequestStatus,
 // {3FECF510-CC94-4FBE-8839-738201F84D59}
 DEFINE_DEVPROPKEY(DEVPKEY_DsHidMini_RO_IpcSlotIndex,
 	0x3fecf510, 0xcc94, 0x4fbe, 0x88, 0x39, 0x73, 0x82, 0x1, 0xf8, 0x4d, 0x59, 6); // DEVPROP_TYPE_UINT32
+
+// TRUE if DeviceAddress was not reported by the hardware (GET Feature 0xF2 failed) and was
+// synthesized instead; see issue #321
+// {3FECF510-CC94-4FBE-8839-738201F84D59}
+DEFINE_DEVPROPKEY(DEVPKEY_DsHidMini_RO_DeviceAddressSynthesized,
+	0x3fecf510, 0xcc94, 0x4fbe, 0x88, 0x39, 0x73, 0x82, 0x1, 0xf8, 0x4d, 0x59, 7); // DEVPROP_TYPE_BOOLEAN

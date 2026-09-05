@@ -208,14 +208,15 @@ NTSTATUS DsUsb_Ds3Shutdown(PDEVICE_CONTEXT Context)
 }
 
 //
-// Shuts off LEDs, rumble etc.
+// Sends an output report (LEDs/rumble) over the control endpoint (EP0) via
+// SET_REPORT, exactly like the PS3 itself does for the very first report
+// after enumeration and again right after enabling streaming (see issue
+// #321). Buffer must not include the report ID byte (Caller strips it, same
+// convention as DS3_GET_UNIFIED_OUTPUT_REPORT_BUFFER for USB).
 // 
-NTSTATUS DsUsb_Ds3IndicatorsOff(PDEVICE_CONTEXT Context)
+NTSTATUS DsUsb_Ds3SendOutputReportControl(PDEVICE_CONTEXT Context, PUCHAR Buffer, ULONG BufferLength)
 {
 	FuncEntry(TRACE_DS3);
-
-	UCHAR buffer[48] = { 0 };
-	RtlZeroMemory(buffer, ARRAYSIZE(buffer));
 
 	const NTSTATUS status = USB_SendControlRequest(
 		Context,
@@ -224,9 +225,295 @@ NTSTATUS DsUsb_Ds3IndicatorsOff(PDEVICE_CONTEXT Context)
 		SetReport,
 		Dss3FeatureOutputReport,
 		0,
-		buffer,
-		ARRAYSIZE(buffer)
+		Buffer,
+		BufferLength
 	);
+
+	if (!NT_SUCCESS(status))
+	{
+		TraceWarning(
+			TRACE_DS3,
+			"Sending output report via control endpoint failed with %!STATUS!",
+			status
+		);
+	}
+
+	FuncExit(TRACE_DS3, "status=%!STATUS!", status);
+
+	return status;
+}
+
+//
+// Maximum number of attempts to read the device's own Bluetooth MAC address
+// (Feature 0xF2) before giving up and synthesizing a fallback. See issue
+// #321: some fakes/clones are timing-sensitive and may succeed on a retry;
+// others (e.g. the Retro Fighters Defender's original USB mode) never
+// implement this request and there is no point retrying forever.
+// 
+#define DS3_DEVICE_ADDRESS_MAX_ATTEMPTS      3
+
+//
+// Delay between device address retry attempts, in milliseconds.
+// 
+#define DS3_DEVICE_ADDRESS_RETRY_DELAY_MS    50
+
+//
+// Delay observed between the PS3's SET Feature 0xF5 (pairing) and its
+// verification GET Feature 0xF5 (27-75 ms across capture samples). Mirrored
+// here so a freshly-paired device has settled before we read it back.
+// 
+#define DS3_PAIRING_VERIFY_DELAY_MS          50
+
+//
+// Derives a stable, locally-administered fallback MAC address from the
+// device's PnP instance ID, for controllers that do not answer Feature 0xF2
+// (see issue #321). Deterministic (not random) so the address, and therefore
+// the per-device JSON config key derived from it, stays the same across
+// replugs on the same USB port. The locally-administered bit is set and the
+// multicast bit cleared so this can never collide with a real, globally
+// assigned Sony OUI, allowing the genuine/fake heuristics elsewhere in the
+// stack (see issue #3) to keep working correctly.
+// 
+static VOID DsUsb_Ds3SynthesizeDeviceAddress(_In_ WDFDEVICE Device, _Out_ PBD_ADDR Address)
+{
+	WDF_DEVICE_PROPERTY_DATA propertyData;
+	WDFMEMORY instanceIdMemory = NULL;
+	DEVPROPTYPE propType;
+	ULONGLONG hash = 0xCBF29CE484222325ULL; // FNV-1a 64-bit offset basis
+	const ULONGLONG prime = 0x100000001B3ULL; // FNV-1a 64-bit prime
+
+	FuncEntry(TRACE_DS3);
+
+	WDF_DEVICE_PROPERTY_DATA_INIT(&propertyData, &DEVPKEY_Device_InstanceId);
+
+	if (NT_SUCCESS(WdfDeviceAllocAndQueryPropertyEx(
+		Device,
+		&propertyData,
+		NonPagedPoolNx,
+		WDF_NO_OBJECT_ATTRIBUTES,
+		&instanceIdMemory,
+		&propType
+	)))
+	{
+		size_t bufferSize = 0;
+		const PUCHAR buffer = (PUCHAR)WdfMemoryGetBuffer(instanceIdMemory, &bufferSize);
+
+		for (size_t i = 0; i < bufferSize; i++)
+		{
+			hash ^= buffer[i];
+			hash *= prime;
+		}
+
+		WdfObjectDelete(instanceIdMemory);
+	}
+	else
+	{
+		//
+		// Extremely unlikely (querying our own instance ID should never
+		// fail); fall back to a fixed seed so the device can still boot.
+		// 
+		TraceWarning(
+			TRACE_DS3,
+			"Querying DEVPKEY_Device_InstanceId failed, using a fixed seed for the synthesized address"
+		);
+
+		hash = 0xDEC0DE0BADC0FFEEULL;
+	}
+
+	for (size_t i = 0; i < sizeof(BD_ADDR); i++)
+	{
+		Address->Address[i] = (UCHAR)((hash >> (8 * i)) & 0xFF);
+	}
+
+	//
+	// Set locally-administered bit, clear multicast bit (IEEE 802 convention)
+	// 
+	Address->Address[0] = (Address->Address[0] & 0xFE) | 0x02;
+
+	FuncExitNoReturn(TRACE_DS3);
+}
+
+//
+// Requests the device's own Bluetooth MAC address (Feature 0xF2), retrying a
+// bounded number of times. On persistent failure this no longer fails the
+// caller: a deterministic fallback address is synthesized instead so devices
+// without this feature report (e.g. the Retro Fighters Defender in its
+// original USB mode) can still be used. See issue #321.
+// 
+NTSTATUS DsUsb_Ds3RequestDeviceAddress(WDFDEVICE Device)
+{
+	NTSTATUS status = STATUS_UNSUCCESSFUL;
+	const PDEVICE_CONTEXT pDevCtx = DeviceGetContext(Device);
+	UCHAR controlTransferBuffer[CONTROL_TRANSFER_BUFFER_LENGTH];
+	WDF_DEVICE_PROPERTY_DATA propertyData;
+	WCHAR deviceAddress[DSHM_DEVICE_ADDRESS_CCH];
+	BOOLEAN synthesized;
+
+	FuncEntry(TRACE_DS3);
+
+	for (ULONG attempt = 1; attempt <= DS3_DEVICE_ADDRESS_MAX_ATTEMPTS; attempt++)
+	{
+		if (NT_SUCCESS(status = USB_SendControlRequest(
+			pDevCtx,
+			BmRequestDeviceToHost,
+			BmRequestClass,
+			GetReport,
+			Ds3FeatureDeviceAddress,
+			0,
+			controlTransferBuffer,
+			CONTROL_TRANSFER_BUFFER_LENGTH
+		)))
+		{
+			break;
+		}
+
+		if (attempt < DS3_DEVICE_ADDRESS_MAX_ATTEMPTS)
+		{
+			TraceWarning(
+				TRACE_DS3,
+				"Requesting device address attempt %d of %d failed with %!STATUS!, retrying in %d ms",
+				attempt,
+				DS3_DEVICE_ADDRESS_MAX_ATTEMPTS,
+				status,
+				DS3_DEVICE_ADDRESS_RETRY_DELAY_MS
+			);
+
+			Sleep(DS3_DEVICE_ADDRESS_RETRY_DELAY_MS);
+		}
+	}
+
+	const NTSTATUS requestStatus = status;
+
+	if (NT_SUCCESS(status))
+	{
+		RtlCopyMemory(
+			&pDevCtx->DeviceAddress,
+			&controlTransferBuffer[4],
+			sizeof(BD_ADDR)
+		);
+
+		pDevCtx->SupportsBluetoothAddressReports = TRUE;
+		synthesized = FALSE;
+
+		TraceInformation(
+			TRACE_DS3,
+			"Device address: %02X:%02X:%02X:%02X:%02X:%02X",
+			pDevCtx->DeviceAddress.Address[0],
+			pDevCtx->DeviceAddress.Address[1],
+			pDevCtx->DeviceAddress.Address[2],
+			pDevCtx->DeviceAddress.Address[3],
+			pDevCtx->DeviceAddress.Address[4],
+			pDevCtx->DeviceAddress.Address[5]
+		);
+	}
+	else
+	{
+		TraceWarning(
+			TRACE_DS3,
+			"Requesting device address failed with %!STATUS! after %d attempts, synthesizing a fallback address",
+			status,
+			DS3_DEVICE_ADDRESS_MAX_ATTEMPTS
+		);
+
+		DsUsb_Ds3SynthesizeDeviceAddress(Device, &pDevCtx->DeviceAddress);
+
+		pDevCtx->SupportsBluetoothAddressReports = FALSE;
+		synthesized = TRUE;
+
+		TraceWarning(
+			TRACE_DS3,
+			"Synthesized device address: %02X:%02X:%02X:%02X:%02X:%02X",
+			pDevCtx->DeviceAddress.Address[0],
+			pDevCtx->DeviceAddress.Address[1],
+			pDevCtx->DeviceAddress.Address[2],
+			pDevCtx->DeviceAddress.Address[3],
+			pDevCtx->DeviceAddress.Address[4],
+			pDevCtx->DeviceAddress.Address[5]
+		);
+
+		//
+		// Never fail device start because of this; the whole point of
+		// issue #321 is that a missing MAC report must not be fatal.
+		// 
+		status = STATUS_SUCCESS;
+	}
+
+	pDevCtx->DeviceAddressSynthesized = synthesized;
+
+	DsDevice_FormatCanonicalAddress(
+		pDevCtx,
+		deviceAddress,
+		ARRAYSIZE(deviceAddress)
+	);
+
+	sprintf_s(
+		pDevCtx->DeviceAddressString,
+		ARRAYSIZE(pDevCtx->DeviceAddressString),
+		"%02X%02X%02X%02X%02X%02X",
+		pDevCtx->DeviceAddress.Address[0],
+		pDevCtx->DeviceAddress.Address[1],
+		pDevCtx->DeviceAddress.Address[2],
+		pDevCtx->DeviceAddress.Address[3],
+		pDevCtx->DeviceAddress.Address[4],
+		pDevCtx->DeviceAddress.Address[5]
+	);
+
+	if (synthesized)
+	{
+		//
+		// DeviceAddressString is only valid from this point on, so the
+		// fallback event (and the address it references) is only emitted
+		// after it has been formatted above.
+		// 
+		EventWriteDeviceAddressUnavailableUsingFallback(pDevCtx->DeviceAddressString, requestStatus);
+	}
+
+	//
+	// Set device address property
+	// 
+
+	WDF_DEVICE_PROPERTY_DATA_INIT(&propertyData, &DEVPKEY_Bluetooth_DeviceAddress);
+	propertyData.Flags |= PLUGPLAY_PROPERTY_PERSISTENT;
+	propertyData.Lcid = LOCALE_NEUTRAL;
+
+	if (!NT_SUCCESS(WdfDeviceAssignProperty(
+		Device,
+		&propertyData,
+		DEVPROP_TYPE_STRING,
+		ARRAYSIZE(deviceAddress) * sizeof(WCHAR),
+		deviceAddress
+	)))
+	{
+		TraceError(
+			TRACE_DS3,
+			"Setting DEVPKEY_Bluetooth_DeviceAddress failed with status %!STATUS!",
+			status
+		);
+	}
+
+	//
+	// Set synthesized-address flag property, so ControlApp can tell the user
+	// this device never reported a real Bluetooth MAC of its own.
+	// 
+
+	WDF_DEVICE_PROPERTY_DATA_INIT(&propertyData, &DEVPKEY_DsHidMini_RO_DeviceAddressSynthesized);
+	propertyData.Flags |= PLUGPLAY_PROPERTY_PERSISTENT;
+	propertyData.Lcid = LOCALE_NEUTRAL;
+
+	if (!NT_SUCCESS(WdfDeviceAssignProperty(
+		Device,
+		&propertyData,
+		DEVPROP_TYPE_BOOLEAN,
+		sizeof(BOOLEAN),
+		&synthesized
+	)))
+	{
+		TraceError(
+			TRACE_DS3,
+			"Setting DEVPKEY_DsHidMini_RO_DeviceAddressSynthesized failed with status %!STATUS!",
+			status
+		);
+	}
 
 	FuncExit(TRACE_DS3, "status=%!STATUS!", status);
 
@@ -418,6 +705,22 @@ NTSTATUS DsUsb_Ds3PairToNewHost(WDFDEVICE Device)
 
 	do
 	{
+		if (!pDevCtx->SupportsBluetoothAddressReports)
+		{
+			//
+			// This device never reported its own Bluetooth MAC (see issue
+			// #321), so it cannot meaningfully be paired to a host either;
+			// the address the console/host would store against is not one
+			// this device recognizes. Callers already tolerate this status.
+			// 
+			TraceInformation(
+				TRACE_DS3,
+				"Device does not support Bluetooth address reports, skipping pairing"
+			);
+			status = STATUS_NOT_SUPPORTED;
+			break;
+		}
+
 		if (pDevCtx->Configuration.DevicePairingMode == DsDevicePairingModeDisabled)
 		{
 			TraceInformation(
@@ -502,6 +805,39 @@ NTSTATUS DsUsb_Ds3PairToNewHost(WDFDEVICE Device)
 	FuncExit(TRACE_DS3, "status=%!STATUS!", status);
 
 	return status;
+}
+
+//
+// Pairs to the configured host (or skips it, see DsUsb_Ds3PairToNewHost) and
+// then re-reads the host address to verify/reflect the outcome, waiting a
+// short delay in between. The PS3 itself leaves 27-75 ms between its SET
+// Feature 0xF5 and the verifying GET Feature 0xF5 across capture samples;
+// mirrored here as a single fixed delay so a freshly-paired device has
+// settled before being read back. Used by every call site that used to
+// call DsUsb_Ds3PairToNewHost followed by DsUsb_Ds3RequestHostAddress
+// directly, so the delay only needs to live in one place. See issue #321.
+// 
+NTSTATUS DsUsb_Ds3PairAndVerify(_In_ WDFDEVICE Device, _Out_opt_ PNTSTATUS ReadStatus)
+{
+	FuncEntry(TRACE_DS3);
+
+	const NTSTATUS writeStatus = DsUsb_Ds3PairToNewHost(Device);
+
+	if (NT_SUCCESS(writeStatus))
+	{
+		Sleep(DS3_PAIRING_VERIFY_DELAY_MS);
+	}
+
+	const NTSTATUS readStatus = DsUsb_Ds3RequestHostAddress(Device);
+
+	if (ReadStatus)
+	{
+		*ReadStatus = readStatus;
+	}
+
+	FuncExit(TRACE_DS3, "writeStatus=%!STATUS!", writeStatus);
+
+	return writeStatus;
 }
 
 //

@@ -218,9 +218,25 @@ public partial class DeviceViewModel : ObservableObject, IDisposable
                 return null;
             }
 
-            return MacAddressFormatter.ToFriendly(DeviceAddress);
+            string friendly = MacAddressFormatter.ToFriendly(DeviceAddress);
+
+            return IsDeviceAddressSynthesized ? $"{friendly} (not reported by device)" : friendly;
         }
     }
+
+    /// <summary>
+    ///     <see langword="true"/> if this device never reported its own Bluetooth MAC address (the driver
+    ///     synthesized a deterministic fallback instead). Bluetooth pairing is unavailable in this case. See issue
+    ///     #321.
+    /// </summary>
+    public bool IsDeviceAddressSynthesized =>
+        Device.GetProperty<bool>(DsHidMiniDriver.DeviceAddressSynthesizedProperty);
+
+    /// <summary>
+    ///     <see langword="true"/> if this device is capable of being paired to a Bluetooth host at all, i.e. it is
+    ///     wired and reported its own Bluetooth MAC address. Controls whether pairing UI should be enabled.
+    /// </summary>
+    public bool SupportsBluetoothPairing => !IsWireless && !IsDeviceAddressSynthesized;
 
     /// <summary>
     ///     The Bluetooth MAC address of the host radio this device is currently paired to.

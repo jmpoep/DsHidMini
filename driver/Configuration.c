@@ -50,6 +50,24 @@ static DS_DEVICE_PAIRING_MODE DS_DEVICE_PAIRING_MODE_FROM_NAME(_In_ const PSTR M
 }
 
 //
+// Translates a friendly name string into the corresponding DS_USB_OUTPUT_REPORT_TRANSPORT value
+// 
+static DS_USB_OUTPUT_REPORT_TRANSPORT DS_USB_OUTPUT_REPORT_TRANSPORT_FROM_NAME(_In_ const PSTR ModeName)
+{
+	if (!_strcmpi(ModeName, G_USB_OUTPUT_REPORT_TRANSPORT_NAMES[2]))
+	{
+		return DsUsbOutputReportTransportControlEndpoint;
+	}
+
+	if (!_strcmpi(ModeName, G_USB_OUTPUT_REPORT_TRANSPORT_NAMES[1]))
+	{
+		return DsUsbOutputReportTransportInterruptOut;
+	}
+
+	return DsUsbOutputReportTransportAuto;
+}
+
+//
 // Translates a friendly name string into the corresponding DS_PRESSURE_EXPOSURE_MODE value
 // 
 static DS_PRESSURE_EXPOSURE_MODE DS_PRESSURE_EXPOSURE_MODE_FROM_NAME(_In_ const PSTR ModeName)
@@ -490,6 +508,12 @@ static void ConfigNodeParse(
 		{
 			pCfg->AutoRestartOnHidModeMismatch = (BOOLEAN)cJSON_IsTrue(pNode);
 			EventWriteOverrideSettingUInt(ParentNode->string, "AutoRestartOnHidModeMismatch", pCfg->AutoRestartOnHidModeMismatch);
+		}
+
+		if ((pNode = cJSON_GetObjectItem(ParentNode, "UsbOutputReportTransport")))
+		{
+			pCfg->UsbOutputReportTransport = DS_USB_OUTPUT_REPORT_TRANSPORT_FROM_NAME(cJSON_GetStringValue(pNode));
+			EventWriteOverrideSettingUInt(ParentNode->string, "UsbOutputReportTransport", pCfg->UsbOutputReportTransport);
 		}
 	}
 
@@ -1000,6 +1024,7 @@ ConfigSetDefaults(
 	Config->DevicePairingMode = DsDevicePairingModeAuto;
 	Config->PairOnHotReload = FALSE;
 	Config->AutoRestartOnHidModeMismatch = TRUE;
+	Config->UsbOutputReportTransport = DsUsbOutputReportTransportAuto;
 	for (int i = 0; i < 6; i++)
 	{
 		Config->CustomHostAddress[i] = 0x00;
