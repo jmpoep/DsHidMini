@@ -808,7 +808,7 @@ changed. Tools and raw dumps live in [`research/ds3-motion/`](../research/ds3-mo
 - EEPROM page `0xA0`: eight BE u16 at buffer offset `0x11`; gyro pair = (raw zero, cal byte). Sony reads **only** this page. See [Page 0xA0](#page-0xa0-sensor-calibration).
 - Gyro sign: raw **falls** for clockwise-from-above; every `sixaxis.sys` path inverts, so clockwise is **positive (>512)** in Sony's reported value.
 - Gyro scale: ~1.4 counts per (deg/s) (~0.7 deg/s per count, ~±360 deg/s FS), ±15% (hand-turned 90°). Page `0xB0` is not the scale.
-- Cal byte: 26.4 counts/step (Sony `0x6999` Q10; hardware 26.69 ± 0.21). Placement in the 48-byte EP0 payload (no report ID): `[5]/[6]` if Feature `0x01` lists field `0x07`, `[3]/[4]` if type bytes are `0x17`. The 49-byte interrupt-OUT report (report ID at `[0]`) is one byte later: bytes 6-7 / 4-5. See [Gyroscope](#gyroscope).
+- Cal byte: 26.4 counts/step (Sony `0x6999` Q10; hardware 26.69 ± 0.21). Placement in the 48-byte EP0 payload (no report ID): `[5]/[6]` if the field list sets `HW_CAL` (contains `0x07`), `[3]/[4]` if it indicates the SIXAXIS path (`PLAIN_ZERO` clear, including SIXAXIS-2). Do not derive that path from type bytes `0x17`. The 49-byte interrupt-OUT report (report ID at `[0]`) is one byte later: bytes 6-7 / 4-5. See [Gyroscope](#gyroscope).
 - Three gyro paths from Feature `0x01` **field list**, not type bytes: `PLAIN_ZERO`, `HW_CAL`, `SIXAXIS`. SIXAXIS-2 reports type `18 18 18 18` but takes the SIXAXIS path. Class curve on EEPROM `0x00` (`d2 d3…` DS3, `c3 c4…` SIXAXIS, zeros on fakes) is the better discriminator.
 - Counterfeits return a plausible `0200 0180` template so `zero == oneG` never fires. Fake DS3: frozen sensors, ~920 Hz. Obigben: real accel, dead gyro. Detect behaviourally.
 - `ds3cal.dll` is a field-for-field port of Sony's tracker (`research/ds3-motion/probe/GyroCal.cs`).
@@ -818,7 +818,7 @@ changed. Tools and raw dumps live in [`research/ds3-motion/`](../research/ds3-mo
 No code in this pass. Start here next time:
 
 1. USB connect (after `0xF2`/`0xF5`, before first output; see `docs/PS3_USB_STARTUP.md`): `SET Feature 0xEF` page `0xA0` + `GET 0xEF`. Cache the four pairs in device context. `driver/DsHidMiniDrv.c` `DSHM_ProcessHidInputReport` / USB start path.
-2. Read `Feature 0x01` offsets 8 and `0x25`/`0x26..`; derive `DS3_TYPE` / `PLAIN_ZERO` / `HW_CAL`. On the 48-byte EP0 output payload place the cal byte at `[5]/[6]` (field `0x07` DS3) or `[3]/[4]` (type `0x17` SIXAXIS); the 49-byte interrupt-OUT report uses bytes 6-7 / 4-5.
+2. Read `Feature 0x01` offsets 8 and `0x25`/`0x26..`; derive `DS3_TYPE` / `PLAIN_ZERO` / `HW_CAL`. On the 48-byte EP0 output payload place the cal byte at `[5]/[6]` when the field list sets `HW_CAL`, or `[3]/[4]` when it indicates the SIXAXIS path (including SIXAXIS-2); the 49-byte interrupt-OUT report uses bytes 6-7 / 4-5.
 3. Accel in `driver/DsHid.c` `DS3_RAW_TO_SIXAXIS_HID_INPUT_REPORT` and `DS3_RAW_TO_DS4WINDOWS_HID_INPUT_REPORT`: apply the gain-113 formula; move the existing X mirror to **after** cal. Raw layout: `include/DsHidMini/Ds3Types.h` `DS3_RAW_INPUT_REPORT`.
 4. Gyro: invert sign (`512 + zeroRef - raw` or `0x3FF - raw` on `HW_CAL`); apply EEPROM zero. Port `research/ds3-motion/probe/GyroCal.cs` for `HW_CAL`/`SIXAXIS` and re-send the cal byte when the tracker steps. Sending the factory byte once is **not** enough (DS3-A2 idles ~160 counts off).
 5. Counterfeit: if sensors never change, suppress motion / raw-passthrough. Keep `zero == oneG` as a blank-EEPROM guard only.
