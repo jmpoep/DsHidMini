@@ -46,16 +46,20 @@ DsBth_EvtStartupDelayTimerFunc(
 	//
 	// Apply LEDs (mode-aware, authority-checked - fixes issue #351 for the
 	// wireless startup path, which used to always use the single-LED
-	// mapping and write regardless of authority), set rumble durations and
-	// strength, then send - all under one hold of the lock so nothing can
-	// copy a half-updated buffer in between (fixes issue #351/bug 6).
+	// mapping and write regardless of authority), zero rumble strength,
+	// then send - all under one hold of the lock so nothing can copy a
+	// half-updated buffer in between (fixes issue #351/bug 6).
+	//
+	// The zero-strength call below also writes an explicit, finite
+	// duration by itself now (DS3_PROCESS_RUMBLE_STRENGTH, issue #356), so
+	// the two 0xFE duration writes that used to precede it - and that were
+	// never restored afterwards, permanently time-capping every wireless
+	// rumble for the rest of the session - are gone.
 	// 
 	WdfWaitLockAcquire(pDevCtx->OutputReport.Lock, NULL);
 
 	DsLed_ApplyLocked(pDevCtx);
 
-	DS3_SET_SMALL_RUMBLE_DURATION(pDevCtx, 0xFE);
-	DS3_SET_LARGE_RUMBLE_DURATION(pDevCtx, 0xFE);
 	DS3_SET_BOTH_RUMBLE_STRENGTH(pDevCtx, 0x00, 0x00);
 
 	status = DSHM_SendOutputReportUnlocked(pDevCtx, Ds3OutputReportSourceDriverHighPriority);
