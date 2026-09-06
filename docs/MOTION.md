@@ -16,9 +16,11 @@ Sources of truth used, in order of authority:
    closed-source `ds3cal.dll` (x86 and x64 builds are identical) from the
    [rajkosto/ScpToolkit fork](https://github.com/rajkosto/ScpToolkit/tree/master/ScpControl/ds3cal),
    which is the only known re-implementation of Sony's gyro auto-zero logic.
-3. Live dumps from an aftermarket ("clone") DS3 bound to WinUSB via Zadig and
-   read with a throwaway probe (see [Tooling](#tooling)). Genuine DS3 and
-   SIXAXIS live dumps are still pending, see [Open questions](#open-questions).
+3. Live dumps from a genuine DualShock 3 (CECHZC2E-A1 pad, firmware bytes
+   `04 00 08`) and an aftermarket ("clone") DS3, each bound to WinUSB via Zadig
+   and read with a throwaway probe (see [Tooling](#tooling)), including a
+   six-orientation accelerometer table. The original SIXAXIS still has to be
+   dumped, see [Open questions](#open-questions).
 4. Public references: RPCS3 `ds3_pad_handler.cpp`,
    [psdevwiki DualShock 3](https://www.psdevwiki.com/ps3/DualShock_3),
    [mclab SIXAXIS notes](https://mclab.uunyan.com/lab/sixaxis/sxs004.htm),
@@ -54,13 +56,35 @@ level) and from the clone lying flat:
 | DS3 on CECHZC2E-B1 | 498 | 563 | 424 | 494 | 1837 |
 | DS3 on CECHZC2U-A2 | 505 | 553 | 408 | 386 | 1129 |
 | SIXAXIS | 505 | 554 | 469 | 758 (very noisy, 2-997) | 1199 |
+| Genuine DS3, flat on desk (WinUSB probe) | 494 | 475 | 396 | 483 | 200 |
 | Clone, flat on desk (WinUSB probe) | 513 | 500 | 383 | 500 (constant) | 1001 |
 
 Flat on the desk the pad reads **Z ~ 1 g below the zero-g value**
-(398 vs 511 on the A1 pad, 383 vs 512 on the clone), i.e. Sony's Z axis points
-*down* through the pad. X and Y sit at their zero-g values when level.
-The exact sign of each axis for the other five orientations still has to be
-measured (probe `--interactive`).
+(398 vs 511 on the A1 pad, 396 vs 496 on the live DS3, 383 vs 512 on the
+clone). X and Y sit at their zero-g values when level.
+
+### Orientation / sign table (genuine DS3, probe `--interactive`)
+
+Raw big-endian values averaged over 200 reports per pose, and the same values
+after the calibration formula below (this pad's `zero`/`oneG`: X 498/386,
+Y 494/383, Z 496/387):
+
+| Pose | raw X | raw Y | raw Z | cal X | cal Y | cal Z | 1 g on |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| flat on desk, buttons up | 494 | 475 | **396** | 509 | 493 | **409** | Z = -1 g |
+| upside down, buttons on desk | 494 | 469 | **624** | 509 | 487 | **644** | Z = +1 g |
+| standing on the left grip | **607** | 511 | 512 | **621** | 529 | 528 | X = +1 g |
+| standing on the right grip | **383** | 516 | 515 | **397** | 534 | 531 | X = -1 g |
+| front edge down (triggers on desk) | 496 | **385** | 501 | 511 | **402** | 517 | Y = -1 g |
+| back edge down (triggers up) | 495 | **603** | 520 | 510 | **622** | 536 | Y = +1 g |
+
+In Sony's convention (512 = 0 g, +113 = +1 g) an axis reads **+1 g when it
+points upwards**: X is positive with the left grip down, Y with the trigger edge
+up, Z with the pad upside down. That is a right-handed frame of **X towards the
+left grip, Y towards the trigger edge, Z down through the buttons**. Raw and
+calibrated values share the signs; only `sixaxis.sys`/DsHidMini's SIXAXIS mode
+mirror X (`0x3FF - X`). The ~10-count residuals (cal Z 409 instead of 399 when
+flat) are this pad's ageing/temperature drift against its factory EEPROM.
 
 ## Identification: `GET_REPORT Feature 0x01`
 
@@ -69,16 +93,19 @@ with `00 01`):
 
 | Offset | Meaning | Values seen |
 | --- | --- | --- |
-| 2-4 | firmware/board revision bytes; the same three bytes are echoed at offset 2-4 of every `0xEF` answer | A1 `04 00 08`, B1 `04 01 03`, A2 `04 00 0b`, SIXAXIS `02 00 03`, clone `03 00 05` |
+| 2-4 | firmware/board revision bytes; the same three bytes are echoed at offset 2-4 of every `0xEF` answer | A1 `04 00 08`, B1 `04 01 03`, A2 `04 00 0b`, SIXAXIS `02 00 03`, live DS3 `04 00 08`, clone `03 00 05` |
 | 8-11 | sensor/pad type, four identical bytes | `18 18 18 18` DualShock 3, `17 17 17 17` SIXAXIS, clone `18 18 18 18` |
-| 0x25 | number of calibration field IDs that follow | 4 / 3 / 4 / 1 / 2 |
-| 0x26.. | calibration field IDs | A1+A2 `00 01 02 07`, B1 `00 01 02`, SIXAXIS `06`, clone `01 02` |
+| 0x25 | number of calibration field IDs that follow | 4 / 3 / 4 / 1 / 3 / 2 |
+| 0x26.. | calibration field IDs | A1+A2 `00 01 02 07`, B1 `00 01 02`, SIXAXIS `06`, live DS3 `00 01 02`, clone `01 02` |
 
 Field ID `0x07` is the important one: pads that list it (and every SIXAXIS,
 which lists `0x06` instead) accept a **gyro calibration byte in the output
-report** (see [Gyro](#gyroscope)). Pads without it (B1 sample, clone) get no
-cal bytes from the PS3 and are only software-zeroed. rajkosto's
-`UsbDs3.cs` encodes exactly this decision tree.
+report** (see [Gyro](#gyroscope)). Pads without it (B1 sample, the live DS3,
+clone) get no cal bytes from the PS3 and are only software-zeroed; their EEPROM
+gyro cal-byte slot reads `0`. rajkosto's `UsbDs3.cs` encodes exactly this
+decision tree. Note that the live DS3 shares firmware bytes `04 00 08` with the
+A1 capture pad yet lacks field `0x07`, so the field list has to be read per pad
+- it cannot be inferred from the revision bytes.
 
 ## Calibration EEPROM: `Feature 0xEF`, `0xF8`, `0xF7`
 
@@ -100,19 +127,33 @@ GET_REPORT Feature 0xF8, 64 bytes
   and the page payload starts at **offset 0x11 (17)**, 16 bytes long.
   `vv vv vv` are the revision bytes from `Feature 0x01`. Offset 0x30 is `05`
   on genuine pads and `04` on the clone (meaning unknown).
-- Page addresses step in units of `0x10`. The clone answers every page from
-  `0x00` to `0xF0`; only `0x70`, `0x80`, `0x90`, `0xA0` and `0xB0` are
-  non-zero. Whether genuine pads expose more than `0xA0`/`0xB0` is untested.
-- Without a preceding page select, the clone returns page `0xA0`. Genuine
-  behaviour untested (the PS3 never does a plain read).
+- Page addresses step in units of `0x10`; both the genuine DS3 and the clone
+  answer every page from `0x00` to `0xF0`. On the genuine pad: `0x00`-`0x60`
+  hold a monotonic byte curve (`d2 d3 d4 ... ff`, most likely a lookup table for
+  the analogue inputs or the battery gauge), `0x70` and `0x80` trim data
+  (`0x80` = `03 ff 00 00 ff 44 44 02 65 02 5a`), `0x90` four u16 pairs that look
+  like stick min/max (`00 5f 03 a1`, `00 63 03 9d`, ...), `0xA0` the sensor
+  calibration below, `0xB0` two u16 (`02 65 02 5a` = 613 / 602 - the same two
+  values that also sit at `0x80` offset 8-11), `0xC0` a lone `06`, and `0xF0`
+  what looks like a manufacturing record
+  (`20 07 09 03 00 00 22 2f 00 01 00 00 1f ba 95 0b`, plausibly 2007-09-03 plus
+  a serial). The clone's image is a fixed template with the same structure
+  (`0x90` = `00 5c 03 a4` four times, `0xB0` = `02 80 02 80`).
+- Without a preceding page select, the clone returns page `0xA0`; the genuine
+  DS3 returned a buffer whose header reads `03 00 10` with content
+  (`00 00 01 64 19 01 00 64 00 01 90 00 19 fe 00`) unlike page `0x10` read via
+  `03 01 10`, so request byte 5 (`01` in the PS3 payload) selects something else
+  - a different bank or a read width. Leave it at `01`; the PS3 never does a
+  plain read.
 - `Feature 0xF8` returns whatever is in the same 64-byte device buffer with
   the header replaced by `00 01 00 00` (A1, B1, SIXAXIS all return the last
   `0xEF` answer). The A2 console/pad and the clone return all zeros. It
   carries no extra information in any capture.
 - `Feature 0xF7` (read once after the first output report) varies per pad and
   per plug-in; bytes 2-6 look like live sensor/ADC readings
-  (`7f 02 ce 01 f1`, `1e 02 fa 01 01`, `fe 02 f8 01 ef`) followed by `ff 14 33`
-  on DS3-class pads, all zero on the A2 sample and mostly zero on the SIXAXIS
+  (`7f 02 ce 01 f1`, `1e 02 fa 01 01`, `fe 02 f8 01 ef`, live DS3
+  `04 02 da 01 ee`) followed by `ff 14 33` (`ff 10 90` on the live DS3) on
+  DS3-class pads, all zero on the A2 sample and mostly zero on the SIXAXIS
   (`0a 01 ea` at 12-14). Purpose unknown; not needed for motion.
 
 ### Page `0xA0`: sensor calibration
@@ -134,6 +175,7 @@ Observed:
 | DS3 (B1 capture) | 508 / 395 (113) | 507 / 398 (109) | 513 / 402 (111) | 488 / **0** | 624 / 615 |
 | DS3 (A2 capture) | 507 / 395 (112) | 510 / 397 (113) | 511 / 400 (111) | 521 / **0x7F** | 620 / 622 |
 | SIXAXIS | 521 / 411 (110) | 518 / 404 (114) | 499 / 389 (110) | 513 / **0x75** | 637 / 632 |
+| Genuine DS3 (live, WinUSB) | 498 / 386 (112) | 494 / 383 (111) | 496 / 387 (109) | 481 / **0** | 613 / 602 |
 | Clone | 512 / 384 (128) | 512 / 384 (128) | 512 / 384 (128) | 512 / 0 | 640 / 640 |
 
 Numbers in parentheses are `zero - oneG`, i.e. counts per g: **~113 on genuine
@@ -141,11 +183,10 @@ hardware**, a suspiciously round 128 on the clone (its "EEPROM" is a fixed
 template, but its accelerometer really does read 383 flat, so the template is
 consistent with the firmware's scaling).
 
-The rest of page `0xB0` is zero on every pad. Its two values (~620-640) are
-unexplained; candidates are gyro sensitivity or temperature compensation. The
-clone's pages `0x70`/`0x80`/`0x90` contain what look like stick min/max
-(`00 5c 03 a4` = 92 / 932 repeated per axis) and other trim data; not
-relevant for motion.
+The rest of page `0xB0` is zero on every pad. Its two values (~600-640) are
+unexplained; candidates are gyro sensitivity or temperature compensation. On the
+genuine DS3 the same two values are repeated at page `0x80` offset 8-11, which
+argues for them being a sensor property rather than gyro-specific.
 
 Note on lewy20041's parsing: he reads little-endian u16 at buffer offsets 20,
 22, ..., 32. Offset 20-21 happens to be the low byte of X.oneG followed by the
@@ -177,9 +218,11 @@ the sign flip on X at least matches what `sixaxis.sys` does on Windows (see
 below).
 
 For a **DS4-style** output (DS4Windows mode) the natural conversion is
-`accel_ds4 = (raw - zero) * 8192 / (zero - oneG)` per axis (DS4: 8192 LSB/g),
-with the axis permutation/sign still to be settled by the six-orientation
-measurement.
+`accel_ds4 = (raw - zero) * 8192 / (zero - oneG)` per axis (DS4: 8192 LSB/g).
+The DS3 source frame is now known (X towards the left grip, Y towards the
+trigger edge, Z down through the buttons - see the orientation table above);
+the permutation and signs into the DS4 frame still need a reference DS4
+capture to confirm.
 
 ## Gyroscope
 
@@ -279,11 +322,18 @@ quiet blocks and emitted 512 - exactly as designed.
 
 The gyro's counts-per-degree-per-second are **not** in the EEPROM and not in
 `ds3cal.dll` (which only zeroes). RPCS3 passes the value through with gain 1.
-For a DS4-style output (16 LSB per deg/s) a scale factor has to be measured:
-integrate `(raw - zeroRef)` over a controlled 90 degree yaw turn recorded with
-the probe's CSV, or read it off the mclab/psdevwiki notes if they turn out to
-have it. Page `0xB0` (620-640 range) is a candidate carrier of this
-information and should be compared across more pads.
+On the live DS3 (at rest 483) a slow hand-held yaw rotation swung the raw value
+between 362 and 596, i.e. roughly +-120 counts for a leisurely turn, so the
+sensor is nowhere near saturating its 10 bits at normal speeds. For a DS4-style
+output (16 LSB per deg/s) a scale factor still has to be measured: integrate
+`(raw - rest)` over a controlled 90 or 180 degree yaw turn and divide by the
+angle (the probe prints that integral after the yaw prompt). Page `0xB0`
+(600-640 range) is a candidate carrier of this information and should be
+compared across more pads.
+
+The direction convention is unsettled: the recorded DS3 turn produced a net
+negative integral, but the physical turn direction was not logged. Repeat with
+a known clockwise turn (viewed from above) to pin the sign.
 
 ## What `sixaxis.sys` / RPCS3 expect
 
@@ -319,7 +369,8 @@ the PS3 sign convention. Its Linux path (raw hidraw) flips X manually:
    auto-zero tracker above (optional; the plain EEPROM zero is what the PS3 uses
    for the first ~38 s anyway).
 4. DS4Windows mode: `accel_ds4 = (raw - zero) * 8192 / (zero - oneG)` with
-   axis mapping from the orientation test; gyro yaw scaled by the measured
+   the axis permutation checked against a reference DS4; gyro yaw scaled by the
+   measured
    deg/s factor into the DS4 gyro-Y slot, pitch/roll zero.
 5. Clone handling: if `0xEF` fails or `zero == oneG`, fall back to
    `zero = 512, oneG = 512 - 113` (or 384 for the 128-count clone class) and
@@ -327,11 +378,17 @@ the PS3 sign convention. Its Linux path (raw hidraw) flips X manually:
 
 ## Open questions
 
-- Six-orientation sign table for X/Y/Z and yaw direction on genuine DS3 and
-  SIXAXIS (probe `--interactive`; needs a Zadig swap per controller).
+- Original SIXAXIS: live dump, orientation table and `0xEF` layout. The first
+  attempt wedged the pad's control endpoint (`ERROR_GEN_FAILURE` on every EP0
+  transfer, including the plain device descriptor) after the WinUSB wrapper
+  library tried to read string descriptors the SIXAXIS does not serve. The
+  probe now drives `winusb.dll` directly and never touches string descriptors;
+  a re-plug of the pad is needed before retrying.
+- Yaw sign and deg/s scale from a turn of known direction and angle.
 - Confirm the 26.4 counts/step cal-byte sensitivity on a SIXAXIS and a
   field-`0x07` DS3 (probe `--calbyte`), and whether a DS3 without field `0x07`
-  ignores the bytes.
+  ignores the bytes. Neither pad available here lists field `0x07`, so this
+  needs the SIXAXIS or another DS3.
 - Gyro deg/s scale; meaning of page `0xB0`; whether genuine pads answer pages
   other than `0xA0`/`0xB0`.
 - 113 vs 226 gain on X/Y in Sony's own pad library.
@@ -352,8 +409,12 @@ Everything binary or throwaway lives outside the repository in
   post-script, decompiler output (`ds3cal_*.decompiled.c`) and
   `ds3cal_algorithm.md` with the annotated state layout.
   Run: `analyzeHeadless.bat <proj> ds3cal -import ds3cal.dll -postScript ExportDecompiled.java <out.c>`.
-- `probe/` - .NET 10 console on `Nefarius.Drivers.WinUSB` for a Zadig/WinUSB-bound
-  `054C:0268`: dumps `0x01/0xF2/0xF5/0xF7/0xF8`, every `0xEF` page, enables
+- `probe/` - .NET 10 console driving `winusb.dll` through a thin P/Invoke layer
+  (`WinUsbRaw.cs`). `Nefarius.Drivers.WinUSB` was tried first but its
+  `USBDevice` constructor eagerly reads string descriptors, which an original
+  SIXAXIS answers with a STALL, killing the whole session. For a
+  Zadig/WinUSB-bound `054C:0268` it dumps `0x01/0xF2/0xF5/0xF7/0xF8`, every
+  `0xEF` page, enables
   streaming (`0xF4 42 0C`), logs raw / SIXAXIS.SYS-style / calibrated values
   side by side to CSV, runs the gyro tracker live, optional `--interactive`
   orientation prompts and `--calbyte` sensitivity experiment, and shuts down
