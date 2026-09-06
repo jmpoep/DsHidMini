@@ -41,8 +41,9 @@ public enum DefenderBtModeSwitchResult
 /// <remarks>
 ///     See issue #282 and <c>docs/PS3_USB_STARTUP.md</c> ("Retro Fighters Defender") for how this sequence was
 ///     derived from real PS3-to-Defender-BT USB captures. The report is a verbatim replay of what a genuine PS3
-///     periodically sends a real DualShock 4 as well (harmless no-op there), so sending it to a device that
-///     merely looks like a Defender BT but is not carries no risk beyond it being ignored.
+///     periodically sends a real DualShock 4 as well (harmless no-op there), but detection/targeting still
+///     requires the Defender-specific <see cref="DefenderBtVersionNumber" /> discriminator below (in addition
+///     to VID/PID) so that a genuine DualShock 4 is never misidentified as, or targeted as, a Defender BT.
 /// </remarks>
 [SuppressMessage("ReSharper", "InconsistentNaming")]
 public static class DefenderBtModeSwitcher
@@ -61,6 +62,16 @@ public static class DefenderBtModeSwitcher
     ///     Product ID the Defender BT (and a genuine DualShock 3) enumerates as after the probe below succeeds.
     /// </summary>
     public const ushort DualShock3ProductId = 0x0268;
+
+    /// <summary>
+    ///     The <c>bcdDevice</c> / <see cref="HIDD_ATTRIBUTES.VersionNumber" /> value observed on the Defender BT
+    ///     while in its DualShock 4 identity. A genuine DualShock 4 reports <c>0x0100</c> here instead, so this
+    ///     is required - in addition to matching VID/PID - before a device is treated as (or targeted as) a
+    ///     Defender BT. Without this check a real DualShock 4 would be misidentified and offered/subjected to
+    ///     the mode switch. See <c>docs/PS3_USB_STARTUP.md</c> ("Retro Fighters Defender") for the capture this
+    ///     was derived from.
+    /// </summary>
+    public const ushort DefenderBtVersionNumber = 0x0221;
 
     /// <summary>
     ///     The 17-byte <c>SET_REPORT Feature 0x14</c> payload a real PS3 sends every ~1 second while a
@@ -86,14 +97,14 @@ public static class DefenderBtModeSwitcher
     }
 
     /// <summary>
-    ///     True if <paramref name="devicePath" /> points to a HID device currently reporting Sony's Defender-BT
-    ///     DualShock 4 identity (VID 0x054C, PID 0x05C4).
+    ///     True if <paramref name="devicePath" /> points to a HID device currently reporting the Defender-BT
+    ///     DualShock 4 identity (VID 0x054C, PID 0x05C4, VersionNumber 0x0221) - not just any DualShock 4.
     /// </summary>
     public static bool IsDefenderBtInDs4Mode(string devicePath)
     {
         using SafeFileHandle handle = OpenDevice(devicePath);
         return !handle.IsInvalid && TryGetAttributes(handle, out HIDD_ATTRIBUTES attributes) &&
-               attributes.VendorID == SonyVendorId && attributes.ProductID == DualShock4ProductId;
+               IsDefenderBtCandidate(attributes);
     }
 
     /// <summary>
@@ -105,7 +116,7 @@ public static class DefenderBtModeSwitcher
         using SafeFileHandle handle = OpenDevice(devicePath);
 
         if (handle.IsInvalid || !TryGetAttributes(handle, out HIDD_ATTRIBUTES attributes) ||
-            attributes.VendorID != SonyVendorId || attributes.ProductID != DualShock4ProductId)
+            !IsDefenderBtCandidate(attributes))
         {
             return DefenderBtModeSwitchResult.NotADefenderBt;
         }
@@ -129,6 +140,18 @@ public static class DefenderBtModeSwitcher
         }
 
         return DefenderBtModeSwitchResult.Sent;
+    }
+
+    /// <summary>
+    ///     True if <paramref name="attributes" /> match the Defender BT's known DualShock 4 identity signature
+    ///     (VID/PID plus the Defender-specific <see cref="DefenderBtVersionNumber" />), as opposed to a genuine
+    ///     DualShock 4, which shares the same VID/PID but reports a different version number.
+    /// </summary>
+    private static bool IsDefenderBtCandidate(HIDD_ATTRIBUTES attributes)
+    {
+        return attributes.VendorID == SonyVendorId &&
+               attributes.ProductID == DualShock4ProductId &&
+               attributes.VersionNumber == DefenderBtVersionNumber;
     }
 
     private static SafeFileHandle OpenDevice(string devicePath)
