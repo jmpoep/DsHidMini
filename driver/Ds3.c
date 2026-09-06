@@ -821,7 +821,45 @@ NTSTATUS DsUsb_Ds3PairAndVerify(_In_ WDFDEVICE Device, _Out_opt_ PNTSTATUS ReadS
 {
 	FuncEntry(TRACE_DS3);
 
+	const PDEVICE_CONTEXT pDevCtx = DeviceGetContext(Device);
+
 	const NTSTATUS writeStatus = DsUsb_Ds3PairToNewHost(Device);
+
+	//
+	// A device that never reported its own Bluetooth MAC (see issue #321)
+	// doesn't support the host-address feature report either; skip the
+	// verify read so we don't emit a spurious failed-host-request trace
+	// and event for an expected, already-logged condition, and keep
+	// reporting the not-supported status instead of overwriting it with
+	// whatever the (equally unsupported) read attempt would have failed
+	// with.
+	// 
+	if (writeStatus == STATUS_NOT_SUPPORTED || !pDevCtx->SupportsBluetoothAddressReports)
+	{
+		WDF_DEVICE_PROPERTY_DATA propertyData;
+		NTSTATUS notSupportedStatus = STATUS_NOT_SUPPORTED;
+
+		WDF_DEVICE_PROPERTY_DATA_INIT(&propertyData, &DEVPKEY_DsHidMini_RO_LastHostRequestStatus);
+		propertyData.Flags |= PLUGPLAY_PROPERTY_PERSISTENT;
+		propertyData.Lcid = LOCALE_NEUTRAL;
+
+		(VOID)WdfDeviceAssignProperty(
+			Device,
+			&propertyData,
+			DEVPROP_TYPE_NTSTATUS,
+			sizeof(NTSTATUS),
+			&notSupportedStatus
+		);
+
+		if (ReadStatus)
+		{
+			*ReadStatus = STATUS_NOT_SUPPORTED;
+		}
+
+		FuncExit(TRACE_DS3, "writeStatus=%!STATUS!", writeStatus);
+
+		return writeStatus;
+	}
 
 	if (NT_SUCCESS(writeStatus))
 	{

@@ -236,7 +236,8 @@ public partial class DeviceViewModel : ObservableObject, IDisposable
     ///     <see langword="true"/> if this device is capable of being paired to a Bluetooth host at all, i.e. it is
     ///     wired and reported its own Bluetooth MAC address. Controls whether pairing UI should be enabled.
     /// </summary>
-    public bool SupportsBluetoothPairing => !IsWireless && !IsDeviceAddressSynthesized;
+    public bool SupportsBluetoothPairing =>
+        !IsWireless && !IsDeviceAddressSynthesized && !string.IsNullOrEmpty(DeviceAddress);
 
     /// <summary>
     ///     The Bluetooth MAC address of the host radio this device is currently paired to.

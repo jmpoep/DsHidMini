@@ -52,8 +52,20 @@ static DS_DEVICE_PAIRING_MODE DS_DEVICE_PAIRING_MODE_FROM_NAME(_In_ const PSTR M
 //
 // Translates a friendly name string into the corresponding DS_USB_OUTPUT_REPORT_TRANSPORT value
 // 
-static DS_USB_OUTPUT_REPORT_TRANSPORT DS_USB_OUTPUT_REPORT_TRANSPORT_FROM_NAME(_In_ const PSTR ModeName)
+static DS_USB_OUTPUT_REPORT_TRANSPORT DS_USB_OUTPUT_REPORT_TRANSPORT_FROM_NAME(_In_ cJSON* pNode)
 {
+	if (!cJSON_IsString(pNode))
+	{
+		TraceWarning(
+			TRACE_CONFIG,
+			"UsbOutputReportTransport configuration value is not a string, ignoring and using Auto"
+		);
+
+		return DsUsbOutputReportTransportAuto;
+	}
+
+	const PSTR ModeName = cJSON_GetStringValue(pNode);
+
 	if (!_strcmpi(ModeName, G_USB_OUTPUT_REPORT_TRANSPORT_NAMES[2]))
 	{
 		return DsUsbOutputReportTransportControlEndpoint;
@@ -512,7 +524,7 @@ static void ConfigNodeParse(
 
 		if ((pNode = cJSON_GetObjectItem(ParentNode, "UsbOutputReportTransport")))
 		{
-			pCfg->UsbOutputReportTransport = DS_USB_OUTPUT_REPORT_TRANSPORT_FROM_NAME(cJSON_GetStringValue(pNode));
+			pCfg->UsbOutputReportTransport = DS_USB_OUTPUT_REPORT_TRANSPORT_FROM_NAME(pNode);
 			EventWriteOverrideSettingUInt(ParentNode->string, "UsbOutputReportTransport", pCfg->UsbOutputReportTransport);
 		}
 	}
