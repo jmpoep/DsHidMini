@@ -205,8 +205,7 @@ it returns true only once the buffer holds 4 entries.
 
 - **The cal byte is never clamped.** It is an `int` in the state, `Retarget` does
   `calByte += steps` with no bounds check, and the exports truncate it with a
-  `(char)` cast on the way out. A pad resting far from 512 can wrap it. Clamp to
-  0-255.
+  `(char)` cast on the way out. A pad resting far from 512 can wrap it.
 - **`Retarget` leaves `calByte` untouched when it returns false** (only `zeroRef`
   is written), so callers must not assume it was assigned.
 - **The ring is not reset when the at-rest check produced no cal change**, so it

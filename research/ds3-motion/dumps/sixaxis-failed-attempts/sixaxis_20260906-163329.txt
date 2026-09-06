@@ -31,6 +31,6 @@ SET/GET 0xEF page 0xD0 FAILED: ControlOut 09/03EF len 48: error 31 (A device att
 SET/GET 0xEF page 0xE0 FAILED: ControlOut 09/03EF len 48: error 31 (A device attached to the system is not functioning.)
 SET/GET 0xEF page 0xF0 FAILED: ControlOut 09/03EF len 48: error 31 (A device attached to the system is not functioning.)
 re-select 0xA0 FAILED: ControlOut 09/03EF len 48: error 31 (A device attached to the system is not functioning.)
-## 0xEF page 0xA0 not available/valid - no factory calibration on this unit
+## 0xEF page 0xA0 unavailable because the device returned error 31; factory calibration not confirmed
 
 ## Enable streaming: SET Feature 0xF4 42 0C 00 00

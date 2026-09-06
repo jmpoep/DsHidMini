@@ -114,6 +114,6 @@ SET/GET 0xEF page 0xF0 FAILED: ControlOut 09/03EF len 48: error 31 (A device att
 re-select 0xA0 FAILED: ControlOut 09/03EF len 48: error 31 (A device attached to the system is not functioning.)
 
 ## Identification: type bytes 8..11 = 17 17 17 17 => SIXAXIS-class (0x17); calibration fields (1) = 06; field 0x07 (gyro cal byte in output) = False
-## 0xEF page 0xA0 not available/valid - no factory calibration on this unit
+## 0xEF page 0xA0 re-select failed with error 31 (page was read during the sweep); factory calibration not confirmed from the re-select
 
 ## Enable streaming: SET Feature 0xF4 42 0C 00 00

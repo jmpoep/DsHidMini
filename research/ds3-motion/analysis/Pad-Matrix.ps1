@@ -24,6 +24,9 @@ function GetBlock([string[]]$lines, [string]$header) {
 
 foreach ($f in $files) {
     $p = Join-Path $dumps "$f.txt"
+    if (-not (Test-Path $p)) {
+        $p = Join-Path $dumps (Join-Path 'sixaxis-failed-attempts' "$f.txt")
+    }
     if (-not (Test-Path $p)) { continue }
     $l = [IO.File]::ReadAllLines($p, [Text.Encoding]::UTF8)
 
@@ -38,9 +41,11 @@ foreach ($f in $files) {
     $fields = if ($nf -gt 0) { ($id[0x26..(0x25 + $nf)] -join ' ') } else { '(none)' }
     $has07 = $fields -match '(^| )07( |$)'
     $plainZero = ($nf -ge 2 -and (($id[0x26] -eq '01' -and $id[0x27] -eq '02') -or ($nf -ge 3 -and $id[0x27] -eq '01' -and $id[0x28] -eq '02')))
+    $isSixaxisType = $id[8] -eq '17'
     $path = if ($has07) { 'HW_CAL  (tracker trims hardware, reports 0x3FF-raw)' }
+    elseif ($isSixaxisType) { 'SIXAXIS (full software tracker, cal byte at out[3]/[4])' }
     elseif ($plainZero) { 'PLAIN_ZERO (software zero vs EEPROM, no tracker)' }
-    else { 'SIXAXIS (full software tracker, cal byte at out[3]/[4])' }
+    else { 'PLAIN_ZERO-clear (type != 0x17, no field 0x07; tracker by field list, DS3-class output / cal bytes none)' }
 
     Write-Host ("`n### {0}" -f $f)
     Write-Host ("    fw {0} | type {1} | fields({2}) {3} | 0x07 {4} | path: {5}" -f $fw, $type, $nf, $fields, $has07, $path)

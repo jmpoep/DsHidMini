@@ -77,7 +77,7 @@ public sealed class GyroCal
         _settleLeft = SettleInitial;
         Retarget(eepromZero, out _zeroRef, out _calByte);
         _output = Math.Clamp(_zeroRef - eepromZero + Target, 0, 1023);
-        return (byte)CalByte;
+        return unchecked((byte)CalByteRaw);
     }
 
     /// <summary>RuntimeGyroCal(raw) -> output gyro; calChanged true when a new cal byte must be sent.</summary>
@@ -89,7 +89,7 @@ public sealed class GyroCal
         {
             _settleLeft--;
             _lastRaw = raw;
-            calByte = (byte)CalByte;
+            calByte = unchecked((byte)CalByteRaw);
             return _output;
         }
 
@@ -113,7 +113,7 @@ public sealed class GyroCal
         }
 
         _lastRaw = raw;
-        calByte = (byte)CalByte;
+        calByte = unchecked((byte)CalByteRaw);
         return _output;
     }
 

@@ -135,22 +135,22 @@ GET Feature 0xF8 (F8 after 0xEF page 0xA0) len=64
 ## Six orientations (2 s each)
 read failed: ReadPipe 0x81: error 31 (A device attached to the system is not functioning.)
 read failed: ReadPipe 0x81: error 121 (The semaphore timeout period has expired.)
-  flat on table, buttons up (Z = -1g expected): n=0 raw avg X 0.0 Y 0.0 Z 0.0 G 0.0 | cal X -11 Y 3 Z 0
+  flat on table, buttons up (Z = -1g expected): n=0 raw avg X 0.0 Y 0.0 Z 0.0 G 0.0 | cal unavailable
 read failed: ReadPipe 0x81: error 121 (The semaphore timeout period has expired.)
 read failed: ReadPipe 0x81: error 121 (The semaphore timeout period has expired.)
-  upside down, buttons facing table: n=0 raw avg X 0.0 Y 0.0 Z 0.0 G 0.0 | cal X -11 Y 3 Z 0
+  upside down, buttons facing table: n=0 raw avg X 0.0 Y 0.0 Z 0.0 G 0.0 | cal unavailable
 read failed: ReadPipe 0x81: error 121 (The semaphore timeout period has expired.)
 read failed: ReadPipe 0x81: error 121 (The semaphore timeout period has expired.)
-  standing on its left grip (L side down): n=0 raw avg X 0.0 Y 0.0 Z 0.0 G 0.0 | cal X -11 Y 3 Z 0
+  standing on its left grip (L side down): n=0 raw avg X 0.0 Y 0.0 Z 0.0 G 0.0 | cal unavailable
 read failed: ReadPipe 0x81: error 121 (The semaphore timeout period has expired.)
 read failed: ReadPipe 0x81: error 121 (The semaphore timeout period has expired.)
-  standing on its right grip (R side down): n=0 raw avg X 0.0 Y 0.0 Z 0.0 G 0.0 | cal X -11 Y 3 Z 0
+  standing on its right grip (R side down): n=0 raw avg X 0.0 Y 0.0 Z 0.0 G 0.0 | cal unavailable
 read failed: ReadPipe 0x81: error 121 (The semaphore timeout period has expired.)
 read failed: ReadPipe 0x81: error 121 (The semaphore timeout period has expired.)
-  front edge down (triggers pointing to the table): n=0 raw avg X 0.0 Y 0.0 Z 0.0 G 0.0 | cal X -11 Y 3 Z 0
+  front edge down (triggers pointing to the table): n=0 raw avg X 0.0 Y 0.0 Z 0.0 G 0.0 | cal unavailable
 read failed: ReadPipe 0x81: error 121 (The semaphore timeout period has expired.)
 read failed: ReadPipe 0x81: error 121 (The semaphore timeout period has expired.)
-  back edge down (USB port up, triggers pointing at the ceiling): n=0 raw avg X 0.0 Y 0.0 Z 0.0 G 0.0 | cal X -11 Y 3 Z 0
+  back edge down (USB port up, triggers pointing at the ceiling): n=0 raw avg X 0.0 Y 0.0 Z 0.0 G 0.0 | cal unavailable
 ## Yaw rotation sample (printing live)
 read failed: ReadPipe 0x81: error 121 (The semaphore timeout period has expired.)
 

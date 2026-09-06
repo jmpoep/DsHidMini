@@ -6,11 +6,19 @@ param(
 )
 
 $ts = 'C:\Program Files\Wireshark\tshark.exe'
-$rows = & $ts -r $Pcap -Y "usbll.data" -T fields -e frame.number -e frame.time_relative -e usbll.pid -e usbll.src -e usbll.dst -e usbll.data 2>$null |
-    ForEach-Object {
+if (-not (Test-Path -LiteralPath $ts)) {
+    throw "tshark not found at '$ts'"
+}
+
+$tsharkOut = & $ts -r $Pcap -Y "usbll.data" -T fields -e frame.number -e frame.time_relative -e usbll.pid -e usbll.src -e usbll.dst -e usbll.data
+if ($LASTEXITCODE -ne 0) {
+    throw "tshark failed with exit code $LASTEXITCODE while extracting HID control transfers from '$Pcap'"
+}
+
+$rows = @($tsharkOut | ForEach-Object {
         $p = $_ -split "`t"
         [pscustomobject]@{ Frame = [int]$p[0]; Time = [double]$p[1]; Pid = $p[2]; Src = $p[3]; Dst = $p[4]; Data = $p[5] }
-    }
+    })
 
 $sb = New-Object System.Text.StringBuilder
 [void]$sb.AppendLine("# $Pcap")
@@ -48,8 +56,9 @@ for ($i = 0; $i -lt $rows.Count; $i++) {
                 $payload += $n.Data
             }
             elseif ($n.Src -eq 'host' -and $n.Dst -eq $dev -and $n.Data.Length -eq 16 -and $payload.Length -lt ($wLength * 2)) {
-                # 8-byte data packet in OUT stage (same length as a setup packet) - accept if it does not look like a setup
-                if ($n.Data -notmatch '^(21|a1|80|00|c0|40)(01|09|0a|0b|06|05|00)') { $payload += $n.Data } else { break }
+                # 8-byte OUT data has the same length as SETUP; identify SETUP by usbll.pid (tshark: SETUP / 0x2d)
+                if ($n.Pid -match '^(SETUP|0x2[dD]|2[dD]|45)$') { break }
+                $payload += $n.Data
             }
             elseif ($n.Src -eq $dev -and $n.Dst -eq 'host' -and $n.Data.Length -eq 0) { break }
             if ($payload.Length -ge ($wLength * 2)) { break }

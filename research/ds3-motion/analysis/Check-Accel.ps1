@@ -24,7 +24,7 @@ foreach ($f in Get-ChildItem $dumps -Filter '*.txt' | Where-Object { $_.Name -ma
         $g = $l.Matches[0].Groups
         if ([int]$g[1].Value -eq 0) { continue }
         $rx = [int][math]::Round([double]$g[2].Value); $ry = [int][math]::Round([double]$g[3].Value); $rz = [int][math]::Round([double]$g[4].Value)
-        $ex = Cal $rx $zx $ox; $ey = Cal $ry $zy $oy; $ez = Cal $rz $zz $oz
+        $ex = Cal -raw $rx -zero $zx -oneG $ox; $ey = Cal -raw $ry -zero $zy -oneG $oy; $ez = Cal -raw $rz -zero $zz -oneG $oz
         $lx = [int]$g[6].Value; $ly = [int]$g[7].Value; $lz = [int]$g[8].Value
         $ok = ($ex -eq $lx) -and ($ey -eq $ly) -and ($ez -eq $lz)
         $total += 3; if (-not $ok) { $bad++ }

@@ -68,12 +68,12 @@ re-derive them from the pcaps.
   (on/off only); the big (left) motor strength byte is a full 0-255 power
   value.
 - Bytes `[6..7]` of the interrupt OUT report (observed as `ff 77`, `ff 7f`,
-  or `00 00` depending on sample) are per-controller values copied
-  verbatim from the `0xEF` calibration page's offset `0xA0` read; one
-  console/pad pairing (B1) reads these back as zero, so DsHidMini sending
-  zeros here is a valid, real-world value, not a gap. They are `0xFF` plus
-  the gyro calibration byte (page `0xA0` offset 14-15); a SIXAXIS gets them
-  at bytes `[4..5]` instead - see [`MOTION.md`](MOTION.md#gyroscope).
+  or `00 00` depending on sample) are an inserted `0xFF` followed by the
+  EEPROM gyro calibration byte (page `0xA0` offset 14-15), not a verbatim
+  copy of that page. One console/pad pairing (B1) reads these back as zero,
+  so DsHidMini sending zeros here is a valid, real-world value, not a gap.
+  A SIXAXIS gets them at bytes `[4..5]` instead - see
+  [`MOTION.md`](MOTION.md#gyroscope).
 - Unused LED pattern blocks (for player slots that are off) are all-zero.
 
 ## LED timing

@@ -204,13 +204,11 @@ GET_REPORT Feature 0xF8, 64 bytes
   identification report is `00 01 02 00 03 08 01 02 17 17 17 17 09 0a ...` with
   one calibration field, `06`. `0xF2` =
   `f2 ff ff 00 00 19 c1 63 7e a0 00 03 40 80 18 01 8a`, `0xF7` =
-  `01 00 7f 02 d9 01 02 ff 14 23`. Note that the probe's own summary line for
-  that run says "no factory calibration on this unit" - that is a **false
-  negative**: the pad stopped answering partway through the page sweep, so the
-  confirmation re-read of `0xA0` failed and the verdict was computed from the
-  failed re-read instead of the good page captured moments earlier. The probe
-  now falls back to the swept page (and checks the echoed page number), but any
-  earlier log carrying that line has to be read against its own `0xA0` dump.
+  `01 00 7f 02 d9 01 02 ff 14 23`. An earlier probe summary for that run said factory calibration was absent;
+  that was a **false negative**: the pad stopped answering partway through the
+  page sweep, so the confirmation re-read of `0xA0` failed. The dump now notes
+  the re-select error 31 instead of concluding calibration is missing. The probe
+  falls back to the swept page (and checks the echoed page number).
 - `Feature 0xF7` (read once after the first output report) varies per pad and
   per plug-in; bytes 2-6 look like live sensor/ADC readings
   (`7f 02 ce 01 f1`, `1e 02 fa 01 01`, `fe 02 f8 01 ef`, DS3-A1a
@@ -589,7 +587,7 @@ Two traps for a re-implementation, both confirmed in the decompilation:
 - The cal byte is tracked as a signed `int` and truncated to `u8` on the way
   out, with **no clamping** at either end - `Retarget` just does
   `calByte += steps`. A pad whose rest value is far from 512 can therefore wrap
-  the byte. Clamp to 0-255.
+  the byte.
 - Neither implementation re-zeroes in software while the hardware trim is
   converging; the reported value keeps using the old `zeroRef` until the pad is
   observed to have applied the new byte (the pending/jump detector).
@@ -777,8 +775,11 @@ Ordered by how visible they are to an application that expects `sixaxis.sys`:
    keep them in the device context. Over Bluetooth the same feature reports
    go through the BthPS3 HID control channel (untested).
 2. Read `Feature 0x01` offsets 8 and 0x25/0x26.. and derive Sony's three flags
-   (`DS3_TYPE`, `PLAIN_ZERO`, `HW_CAL`); place the cal byte at output bytes 6-7
-   (field-`0x07` DS3) or 4-5 (SIXAXIS), seeded with `Gyro.oneG`.
+   (`DS3_TYPE`, `PLAIN_ZERO`, `HW_CAL`). Interrupt-OUT reports are 49 bytes
+   (report ID at `[0]`): cal byte at bytes 6-7 (field-`0x07` DS3) or 4-5
+   (SIXAXIS). EP0 initialization uses the 48-byte payload (no report ID), so
+   the same pair sits one byte earlier: `[5]/[6]` (DS3) or `[3]/[4]`
+   (SIXAXIS). Seed with `Gyro.oneG`.
 3. Per input report: accel
    `cal = ((raw - zero) * 1024 / (zero - oneG)) * 113 / 1024 + 512`, mirroring X
    afterwards, with a `zero == oneG` passthrough guard; gyro per the flag table
@@ -807,7 +808,7 @@ changed. Tools and raw dumps live in [`research/ds3-motion/`](../research/ds3-mo
 - EEPROM page `0xA0`: eight BE u16 at buffer offset `0x11`; gyro pair = (raw zero, cal byte). Sony reads **only** this page. See [Page 0xA0](#page-0xa0-sensor-calibration).
 - Gyro sign: raw **falls** for clockwise-from-above; every `sixaxis.sys` path inverts, so clockwise is **positive (>512)** in Sony's reported value.
 - Gyro scale: ~1.4 counts per (deg/s) (~0.7 deg/s per count, ~±360 deg/s FS), ±15% (hand-turned 90°). Page `0xB0` is not the scale.
-- Cal byte: 26.4 counts/step (Sony `0x6999` Q10; hardware 26.69 ± 0.21). Placement `[5]/[6]` if Feature `0x01` lists field `0x07`, else `[3]/[4]` for the SIXAXIS path. See [Gyroscope](#gyroscope).
+- Cal byte: 26.4 counts/step (Sony `0x6999` Q10; hardware 26.69 ± 0.21). Placement in the 48-byte EP0 payload (no report ID): `[5]/[6]` if Feature `0x01` lists field `0x07`, `[3]/[4]` if type bytes are `0x17`. The 49-byte interrupt-OUT report (report ID at `[0]`) is one byte later: bytes 6-7 / 4-5. See [Gyroscope](#gyroscope).
 - Three gyro paths from Feature `0x01` **field list**, not type bytes: `PLAIN_ZERO`, `HW_CAL`, `SIXAXIS`. SIXAXIS-2 reports type `18 18 18 18` but takes the SIXAXIS path. Class curve on EEPROM `0x00` (`d2 d3…` DS3, `c3 c4…` SIXAXIS, zeros on fakes) is the better discriminator.
 - Counterfeits return a plausible `0200 0180` template so `zero == oneG` never fires. Fake DS3: frozen sensors, ~920 Hz. Obigben: real accel, dead gyro. Detect behaviourally.
 - `ds3cal.dll` is a field-for-field port of Sony's tracker (`research/ds3-motion/probe/GyroCal.cs`).
@@ -817,7 +818,7 @@ changed. Tools and raw dumps live in [`research/ds3-motion/`](../research/ds3-mo
 No code in this pass. Start here next time:
 
 1. USB connect (after `0xF2`/`0xF5`, before first output; see `docs/PS3_USB_STARTUP.md`): `SET Feature 0xEF` page `0xA0` + `GET 0xEF`. Cache the four pairs in device context. `driver/DsHidMiniDrv.c` `DSHM_ProcessHidInputReport` / USB start path.
-2. Read `Feature 0x01` offsets 8 and `0x25`/`0x26..`; derive `DS3_TYPE` / `PLAIN_ZERO` / `HW_CAL`. Place cal byte at output `[5]/[6]` or `[3]/[4]`.
+2. Read `Feature 0x01` offsets 8 and `0x25`/`0x26..`; derive `DS3_TYPE` / `PLAIN_ZERO` / `HW_CAL`. On the 48-byte EP0 output payload place the cal byte at `[5]/[6]` (field `0x07` DS3) or `[3]/[4]` (type `0x17` SIXAXIS); the 49-byte interrupt-OUT report uses bytes 6-7 / 4-5.
 3. Accel in `driver/DsHid.c` `DS3_RAW_TO_SIXAXIS_HID_INPUT_REPORT` and `DS3_RAW_TO_DS4WINDOWS_HID_INPUT_REPORT`: apply the gain-113 formula; move the existing X mirror to **after** cal. Raw layout: `include/DsHidMini/Ds3Types.h` `DS3_RAW_INPUT_REPORT`.
 4. Gyro: invert sign (`512 + zeroRef - raw` or `0x3FF - raw` on `HW_CAL`); apply EEPROM zero. Port `research/ds3-motion/probe/GyroCal.cs` for `HW_CAL`/`SIXAXIS` and re-send the cal byte when the tracker steps. Sending the factory byte once is **not** enough (DS3-A2 idles ~160 counts off).
 5. Counterfeit: if sensors never change, suppress motion / raw-passthrough. Keep `zero == oneG` as a blank-EEPROM guard only.

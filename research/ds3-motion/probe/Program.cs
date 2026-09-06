@@ -239,7 +239,14 @@ if (!Ep0Works())
 
     if (!Ep0Works())
     {
-        byte inp = usb.Pipes.First(p => (p.PipeId & 0x80) != 0).PipeId;
+        var inPipeInfo = usb.Pipes.FirstOrDefault(p => (p.PipeId & 0x80) != 0);
+        if ((inPipeInfo.PipeId & 0x80) == 0)
+        {
+            Log("# no interrupt-IN pipe is available");
+            return 3;
+        }
+
+        byte inp = inPipeInfo.PipeId;
         usb.SetPipeTimeout(inp, 500);
         var warm = new byte[64];
         for (int i = 0; i < 3 && !Ep0Works(); i++)
@@ -342,7 +349,7 @@ if (haveCal)
 }
 else
 {
-    Log("## 0xEF page 0xA0 not available/valid - no factory calibration on this unit");
+    Log("## 0xEF page 0xA0 not available/valid - page read failed or was not 0xA0; factory calibration not confirmed");
 }
 
 if (!stream)
@@ -351,7 +358,14 @@ if (!stream)
 }
 
 // --- streaming -----------------------------------------------------------------------------
-byte inPipe = usb.Pipes.First(p => (p.PipeId & 0x80) != 0).PipeId;
+var streamInPipe = usb.Pipes.FirstOrDefault(p => (p.PipeId & 0x80) != 0);
+if ((streamInPipe.PipeId & 0x80) == 0)
+{
+    Log("# no interrupt-IN pipe is available");
+    return 3;
+}
+
+byte inPipe = streamInPipe.PipeId;
 usb.SetPipeTimeout(inPipe, 500);
 
 Log("\n## Enable streaming: SET Feature 0xF4 42 0C 00 00");
@@ -476,7 +490,7 @@ if (interactive)
         var s = Sample(2.0, false, false);
         yawRest = s.g; // last orientation's resting gyro average
         Log($"  {o}: n={s.n} raw avg X {s.x:F1} Y {s.y:F1} Z {s.z:F1} G {s.g:F1}" +
-            (haveCal ? $" | cal X {CalAccel((int)Math.Round(s.x), cal[0])} Y {CalAccel((int)Math.Round(s.y), cal[1])} Z {CalAccel((int)Math.Round(s.z), cal[2])}" : ""));
+            (haveCal && s.n > 0 ? $" | cal X {CalAccel((int)Math.Round(s.x), cal[0])} Y {CalAccel((int)Math.Round(s.y), cal[1])} Z {CalAccel((int)Math.Round(s.z), cal[2])}" : haveCal ? " | cal unavailable" : ""));
     }
 
     Console.Write("Now rotate the pad slowly around its vertical (yaw) axis for 5 s. Press Enter... ");
@@ -508,7 +522,7 @@ else
     Log($"\n## Passive stream for {seconds} s (runtime gyro cal active)");
     var s = Sample(seconds, true, true);
     Log($"## resting avg over {s.n} reports: raw X {s.x:F1} Y {s.y:F1} Z {s.z:F1} G {s.g:F1}" +
-        (haveCal ? $" | cal X {CalAccel((int)Math.Round(s.x), cal[0])} Y {CalAccel((int)Math.Round(s.y), cal[1])} Z {CalAccel((int)Math.Round(s.z), cal[2])} G(out) {gyroCal.Output} calByte 0x{gyroCal.CalByte:X2} zeroRef {gyroCal.ZeroRef}" : ""));
+        (haveCal && s.n > 0 ? $" | cal X {CalAccel((int)Math.Round(s.x), cal[0])} Y {CalAccel((int)Math.Round(s.y), cal[1])} Z {CalAccel((int)Math.Round(s.z), cal[2])} G(out) {gyroCal.Output} calByte 0x{gyroCal.CalByte:X2} zeroRef {gyroCal.ZeroRef}" : haveCal ? " | cal unavailable" : ""));
 }
 
 if (calByteTest && (hasField7 || isSixaxisClass))

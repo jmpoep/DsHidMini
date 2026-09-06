@@ -12,7 +12,8 @@ tooling notes). These logs document that failure mode; the one complete SIXAXIS 
   0x01/F2/F5/F7/F8 and EEPROM pages 0x00-0x40 read fine, then the pad died mid-sweep.
 - `sixaxis_20260906-172427.txt` + `_stream.csv` - SIXAXIS-2 (type bytes `18 18 18 18` but a
   single calibration field `06`). All feature reports and EEPROM pages were read, so it feeds
-  the pad matrix; the stream died after 8 reports (raw gyro pinned at 6 while the probe put the
-  cal byte at output bytes [5,6], i.e. the DS3 placement - the SIXAXIS path expects [3,4]).
+  the pad matrix. The dump records `Output report sent (cal bytes none)`. The CSV has 8
+  reports with raw gyro pinned at 6; the stream then died (`ReadPipe` errors 31/121) and
+  every orientation sample has `n=0`.
 
 Bluetooth device/host addresses are redacted (`xx`) as in the parent folder.
