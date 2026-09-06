@@ -139,7 +139,7 @@
         },
         "TargetPlatform": {
           "type": "string",
-          "description": "Target platform for BuildDmf on CI (x64, ARM64 or x86). Not needed for local builds."
+          "description": "Target platform for BuildDmf on CI (x64, ARM64 or x86). Not needed for local builds"
         }
       }
     },

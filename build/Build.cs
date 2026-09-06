@@ -57,6 +57,37 @@ class Build : NukeBuild
     static string BuildVersionStamp => Environment.GetEnvironmentVariable("BUILD_VERSION");
 
     /// <summary>
+    /// MSBuild.exe located through the VS installer's vswhere.exe. NUKE's own resolver only probes the
+    /// hard-coded VS2017-VS2022 install folders and finds nothing on a VS 2026 (Dev18) machine.
+    /// </summary>
+    static string MSBuildPath => s_msBuildPath.Value;
+
+    static readonly Lazy<string> s_msBuildPath = new(() =>
+    {
+        AbsolutePath vsWhere = (AbsolutePath)EnvironmentInfo.SpecialFolder(SpecialFolders.ProgramFilesX86)
+            / "Microsoft Visual Studio" / "Installer" / "vswhere.exe";
+
+        if (vsWhere.FileExists())
+        {
+            string path = ProcessTasks.StartProcess(vsWhere,
+                    "-latest -prerelease -products * -requires Microsoft.Component.MSBuild " +
+                    @"-find MSBuild\**\Bin\amd64\MSBuild.exe", logOutput: false)
+                .AssertZeroExitCode().Output
+                .Select(x => x.Text.Trim())
+                .FirstOrDefault(File.Exists);
+
+            if (path != null)
+            {
+                Log.Information("Resolved MSBuild: {Path}", path);
+                return path;
+            }
+        }
+
+        // Pre-VS2026 machines and the CI runner still work through NUKE's built-in probing.
+        return MSBuildToolPathResolver.Resolve();
+    });
+
+    /// <summary>
     /// Runs Microsoft's SignTool with the provided command-line arguments, using the explicit SignToolPath when available or delegating to the WdkWhere tool otherwise.
     /// </summary>
     /// <param name="arguments">Command-line arguments to pass to SignTool (e.g., certificate, timestamp and file options).</param>
@@ -136,6 +167,7 @@ class Build : NukeBuild
                 // (DmfUFramework, DmfUModules.Library, DmfUModules.Template, DmfUModules.Library.Tests).
                 Log.Information("Building DMF DmfU {Configuration} | {Platform}", config, platform);
                 MSBuildTasks.MSBuild(s => s
+                    .SetProcessToolPath(MSBuildPath)
                     .SetTargetPath(DmfSolution)
                     .SetTargets("DmfU")
                     .SetConfiguration(config)
@@ -143,6 +175,9 @@ class Build : NukeBuild
                     .SetMaxCpuCount(Environment.ProcessorCount)
                     .SetNodeReuse(IsLocalBuild)
                     .SetVerbosity(MSBuildVerbosity.Minimal)
+                    // VS 2026's STL errors on DMF's /await experimental coroutine modules unless silenced.
+                    .SetProperty("ForceImportBeforeCppTargets",
+                        RootDirectory / "build" / "SilenceExperimentalCoroutines.props")
                 );
             }
         });
@@ -156,6 +191,7 @@ class Build : NukeBuild
             MSBuildTasks.MSBuild(s =>
             {
                 MSBuildSettings settings = s
+                    .SetProcessToolPath(MSBuildPath)
                     .SetTargetPath(Solution)
                     .SetTargets("Rebuild")
                     .SetConfiguration(Configuration)
