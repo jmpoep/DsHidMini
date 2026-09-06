@@ -64,60 +64,84 @@ jobs:
         with:
           dotnet-version: '10.0.x'
 
-      # windows-2025-vs2026 lists a WDK VS extension and SDK 10.0.26100, but the
-      # WDK headers/libs (ntifs.h, UMDF) are not on disk. See:
-      # https://github.com/actions/runner-images/issues/14263
-      # Install the 26100 WDK so it matches the preinstalled SDK (kit build
-      # numbers must match). Cache the offline layout so only the first run
-      # downloads; every job still has to run the quiet installer.
-      - name: 'Cache WDK installer layout'
-        id: wdk-layout
+      # windows-2025-vs2026 ships a WDK VS extension and SDK 26100, but not the
+      # WDK headers/libs (ntifs.h, UMDF). See runner-images#14263.
+      # The 26100 WDK MSI exits 0 on this image without laying down UMDF files
+      # (it is the VS 2022 kit). Install the VS 2026 pair: SDK + WDK 28000.
+      - name: 'Cache Windows kit installer layouts'
+        id: kits-layout
         uses: actions/cache@v4
         with:
-          path: wdk-layout
-          key: wdk-layout-26100.6584
+          path: |
+            sdk-layout
+            wdk-layout
+          key: windows-kits-28000-v1
 
-      - name: 'Download WDK installer layout'
-        if: steps.wdk-layout.outputs.cache-hit != 'true'
+      - name: 'Download SDK and WDK installer layouts'
+        if: steps.kits-layout.outputs.cache-hit != 'true'
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
-          $bootstrapper = Join-Path $env:RUNNER_TEMP 'wdksetup.exe'
-          # WDK 10.0.26100.6584 (matches the image SDK; hidapi-proven fwlink).
-          Invoke-WebRequest -Uri 'https://go.microsoft.com/fwlink/?linkid=2335869' -OutFile $bootstrapper -UseBasicParsing
-          $layout = Join-Path $env:GITHUB_WORKSPACE 'wdk-layout'
-          New-Item -ItemType Directory -Force -Path $layout | Out-Null
-          $proc = Start-Process -FilePath $bootstrapper -ArgumentList '/layout', $layout, '/quiet', '/ceip', 'off' -Wait -PassThru
-          if ($proc.ExitCode -notin 0, 3010) {
-            throw "WDK /layout failed with exit $($proc.ExitCode)"
+          function Invoke-KitLayout([string]$Uri, [string]$Name, [string]$Layout) {
+            $bootstrapper = Join-Path $env:RUNNER_TEMP $Name
+            Write-Output "Downloading $Name ..."
+            Invoke-WebRequest -Uri $Uri -OutFile $bootstrapper -UseBasicParsing
+            New-Item -ItemType Directory -Force -Path $Layout | Out-Null
+            $proc = Start-Process -FilePath $bootstrapper -ArgumentList '/layout', $Layout, '/quiet', '/ceip', 'off' -Wait -PassThru
+            if ($proc.ExitCode -notin 0, 3010) {
+              throw "$Name /layout failed with exit $($proc.ExitCode)"
+            }
           }
+          Invoke-KitLayout 'https://go.microsoft.com/fwlink/?linkid=2366211' 'winsdksetup.exe' (Join-Path $env:GITHUB_WORKSPACE 'sdk-layout')
+          # Official current WDK for VS 2026 (10.0.28000.*).
+          Invoke-KitLayout 'https://go.microsoft.com/fwlink/?LinkId=2371554' 'wdksetup.exe' (Join-Path $env:GITHUB_WORKSPACE 'wdk-layout')
 
-      - name: 'Install WDK'
+      - name: 'Install SDK 28000 and WDK 28000'
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
           $inc = 'C:\Program Files (x86)\Windows Kits\10\Include'
-          $present = Get-ChildItem $inc -Directory -ErrorAction SilentlyContinue |
-            Where-Object { Test-Path (Join-Path $_.FullName 'wdf\umdf') } |
-            Select-Object -First 1
+          function Test-WdkHeaders {
+            Get-ChildItem $inc -Directory -ErrorAction SilentlyContinue |
+              Where-Object {
+                (Test-Path (Join-Path $_.FullName 'wdf\umdf')) -or
+                (Test-Path (Join-Path $_.FullName 'km\ntifs.h'))
+              } |
+              Select-Object -First 1
+          }
+          $present = Test-WdkHeaders
           if ($present) {
             Write-Output "WDK already present ($($present.Name))."
             return
           }
-          $setup = Join-Path $env:GITHUB_WORKSPACE 'wdk-layout\wdksetup.exe'
-          if (-not (Test-Path -LiteralPath $setup)) {
-            throw "WDK layout missing: $setup"
-          }
-          Write-Output 'Installing WDK from cached offline layout...'
-          $proc = Start-Process -FilePath $setup -ArgumentList '/features', '+', '/quiet', '/norestart', '/ceip', 'off' -Wait -PassThru
-          if ($proc.ExitCode -notin 0, 3010) {
-            throw "WDK install failed with exit $($proc.ExitCode)"
-          }
-          $present = Get-ChildItem $inc -Directory -ErrorAction SilentlyContinue |
-            Where-Object { Test-Path (Join-Path $_.FullName 'wdf\umdf') } |
-            Select-Object -First 1
+
+          $sdkSetup = Join-Path $env:GITHUB_WORKSPACE 'sdk-layout\winsdksetup.exe'
+          $wdkSetup = Join-Path $env:GITHUB_WORKSPACE 'wdk-layout\wdksetup.exe'
+          if (-not (Test-Path -LiteralPath $sdkSetup)) { throw "SDK layout missing: $sdkSetup" }
+          if (-not (Test-Path -LiteralPath $wdkSetup)) { throw "WDK layout missing: $wdkSetup" }
+
+          Write-Output 'Installing Windows SDK 28000...'
+          $sdkArgs = @(
+            '/features',
+            'OptionId.DesktopCPPx86', 'OptionId.DesktopCPPx64', 'OptionId.DesktopCPParm64',
+            'OptionId.UWPCPP',
+            '/quiet', '/norestart', '/ceip', 'off'
+          )
+          $proc = Start-Process -FilePath $sdkSetup -ArgumentList $sdkArgs -Wait -PassThru
+          Write-Output "SDK installer exit $($proc.ExitCode)"
+          if ($proc.ExitCode -notin 0, 3010) { throw "SDK install failed with exit $($proc.ExitCode)" }
+
+          Write-Output 'Installing WDK 28000...'
+          $proc = Start-Process -FilePath $wdkSetup -ArgumentList '/features', '+', '/quiet', '/norestart', '/ceip', 'off' -Wait -PassThru
+          Write-Output "WDK installer exit $($proc.ExitCode)"
+          if ($proc.ExitCode -notin 0, 3010) { throw "WDK install failed with exit $($proc.ExitCode)" }
+
+          $present = Test-WdkHeaders
           if (-not $present) {
-            throw 'WDK installer finished but UMDF headers were not found.'
+            Write-Output 'Include tree after install:'
+            Get-ChildItem $inc -Recurse -Depth 2 -ErrorAction SilentlyContinue |
+              Select-Object -ExpandProperty FullName
+            throw 'Kit installers finished but UMDF/km headers were not found.'
           }
           Write-Output "WDK installed ($($present.Name))."
 
