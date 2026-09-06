@@ -112,6 +112,28 @@ public class AppSnackbarMessagesService
         );
     }
 
+    public void ShowDefenderBtSwitchedToPs3ModeMessage()
+    {
+        _snackbarService.Show(
+            "Switch to PS3 mode requested",
+            "The controller should detach and reappear as a DualShock 3 in a moment. Use the normal pairing controls once it shows up.",
+            ControlAppearance.Success,
+            new SymbolIcon(SymbolRegular.CheckmarkCircle24),
+            TimeSpan.FromSeconds(5)
+        );
+    }
+
+    public void ShowDefenderBtSwitchToPs3ModeFailedMessage()
+    {
+        _snackbarService.Show(
+            "Failed to switch Defender BT to PS3 mode",
+            "The device may have been disconnected. Reconnect it in DualShock 4 mode and try again.",
+            ControlAppearance.Danger,
+            new SymbolIcon(SymbolRegular.DismissCircle24),
+            TimeSpan.FromSeconds(5)
+        );
+    }
+
     public void ShowPowerCyclingDeviceMessage(bool isWireless, bool isAppElevated, bool reconnectionResult)
     {
         if (!isWireless && !isAppElevated)

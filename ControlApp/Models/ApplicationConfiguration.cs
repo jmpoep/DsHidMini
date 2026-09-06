@@ -39,6 +39,12 @@ public class ApplicationConfiguration
     /// </summary>
     public bool HasAcknowledgedDonationDialog { get; set; } = false;
 
+    /// <summary>
+    ///     When true, a Retro Fighters Defender Bluetooth Edition detected in DualShock 4 mode is automatically
+    ///     switched into DualShock 3 (PS3) mode without requiring the user to press a button (see issue #282).
+    /// </summary>
+    public bool AutoSwitchDefenderBtToPs3Mode { get; set; } = false;
+
     private bool _minimizeToTray;
 
     /// <summary>

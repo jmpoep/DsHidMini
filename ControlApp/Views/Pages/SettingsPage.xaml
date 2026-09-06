@@ -38,6 +38,15 @@
                 Foreground="{DynamicResource TextFillColorSecondaryBrush}"
                 Text="When enabled, Minimize and Close hide ControlApp to the notification area. Open the window from the tray icon, or choose Exit to quit."
                 TextWrapping="Wrap" />
+            <CheckBox
+                Margin="0,16,0,8"
+                Content="Automatically switch Retro Fighters Defender BT to PS3 mode"
+                IsChecked="{Binding ViewModel.AutoSwitchDefenderBtToPs3Mode, Mode=TwoWay}" />
+            <TextBlock
+                MaxWidth="600"
+                Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                Text="When enabled, a Retro Fighters Defender Bluetooth Edition detected in DualShock 4 mode is switched into PS3 (DualShock 3) mode automatically, instead of requiring the 'Switch to PS3 mode' button on the Devices page."
+                TextWrapping="Wrap" />
 
             <ui:TextBlock
                 Margin="0,28,0,8"

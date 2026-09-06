@@ -5,3 +5,7 @@ CreateFile
 DeviceIoControl
 WIN32_ERROR
 FILE_ACCESS_RIGHTS
+HidD_GetAttributes
+HidD_GetHidGuid
+HidD_SetFeature
+HIDD_ATTRIBUTES

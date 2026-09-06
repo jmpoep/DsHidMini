@@ -2,6 +2,7 @@
 using System.Windows.Controls;
 
 using Nefarius.DsHidMini.ControlApp.Models;
+using Nefarius.DsHidMini.ControlApp.Services;
 using Nefarius.DsHidMini.ControlApp.ViewModels.Windows;
 
 using Wpf.Ui;
@@ -14,10 +15,12 @@ namespace Nefarius.DsHidMini.ControlApp.Views.Windows;
 public partial class MainWindow : INavigationWindow
 {
     private readonly DshmDevMan _dshmDevMan;
+    private readonly DefenderBtStatusService _defenderBtStatusService;
 
     public MainWindow(
         MainWindowViewModel viewModel,
         DshmDevMan dshmDevMan, //
+        DefenderBtStatusService defenderBtStatusService,
         INavigationService navigationService,
         IServiceProvider serviceProvider,
         ISnackbarService snackbarService,
@@ -28,6 +31,7 @@ public partial class MainWindow : INavigationWindow
         DataContext = this;
 
         _dshmDevMan = dshmDevMan;
+        _defenderBtStatusService = defenderBtStatusService;
 
         SystemThemeWatcher.Watch(this);
 
@@ -67,6 +71,7 @@ public partial class MainWindow : INavigationWindow
         base.OnSourceInitialized(e);
 
         _dshmDevMan.StartListeningForDshmDevices();
+        _defenderBtStatusService.StartListening();
         ApplyMinimizeToTraySetting();
     }
 
@@ -96,6 +101,7 @@ public partial class MainWindow : INavigationWindow
         }
 
         _dshmDevMan.StopListeningForDshmDevices();
+        _defenderBtStatusService.StopListening();
         base.OnClosing(e);
     }
 

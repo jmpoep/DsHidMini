@@ -18,14 +18,19 @@ namespace Nefarius.DsHidMini.ControlApp.Services;
 /// </summary>
 public class ApplicationHostService : IHostedService
 {
+    private readonly DefenderBtStatusService _defenderBtStatusService;
     private readonly DshmDevMan _dshmDevMan;
     private readonly IServiceProvider _serviceProvider;
     private INavigationWindow _navigationWindow;
 
-    public ApplicationHostService(IServiceProvider serviceProvider, DshmDevMan dshmDevMan)
+    public ApplicationHostService(
+        IServiceProvider serviceProvider,
+        DshmDevMan dshmDevMan,
+        DefenderBtStatusService defenderBtStatusService)
     {
         _serviceProvider = serviceProvider;
         _dshmDevMan = dshmDevMan;
+        _defenderBtStatusService = defenderBtStatusService;
     }
 
     /// <summary>
@@ -44,6 +49,7 @@ public class ApplicationHostService : IHostedService
     public async Task StopAsync(CancellationToken cancellationToken)
     {
         _dshmDevMan.StopListeningForDshmDevices();
+        _defenderBtStatusService.StopListening();
         await Task.CompletedTask;
     }
 
