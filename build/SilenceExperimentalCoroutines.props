@@ -1,0 +1,9 @@
+<Project>
+  <!-- VS 2026 (MSVC 14.51+) treats the deprecated /await experimental coroutine headers as an error.
+       DMF still compiles several C++ modules with /await; this define is the vendor-documented escape hatch. -->
+  <ItemDefinitionGroup>
+    <ClCompile>
+      <PreprocessorDefinitions>_SILENCE_EXPERIMENTAL_COROUTINE_DEPRECATION_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+    </ClCompile>
+  </ItemDefinitionGroup>
+</Project>

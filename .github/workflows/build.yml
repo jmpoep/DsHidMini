@@ -58,6 +58,11 @@ jobs:
           lfs: true
           persist-credentials: false
 
+      - name: 'Setup .NET'
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
       - name: 'Compute build version'
         id: version
         shell: pwsh
