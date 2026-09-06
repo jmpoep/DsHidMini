@@ -64,6 +64,63 @@ jobs:
         with:
           dotnet-version: '10.0.x'
 
+      # windows-2025-vs2026 lists a WDK VS extension and SDK 10.0.26100, but the
+      # WDK headers/libs (ntifs.h, UMDF) are not on disk. See:
+      # https://github.com/actions/runner-images/issues/14263
+      # Install the 26100 WDK so it matches the preinstalled SDK (kit build
+      # numbers must match). Cache the offline layout so only the first run
+      # downloads; every job still has to run the quiet installer.
+      - name: 'Cache WDK installer layout'
+        id: wdk-layout
+        uses: actions/cache@v4
+        with:
+          path: wdk-layout
+          key: wdk-layout-26100.6584
+
+      - name: 'Download WDK installer layout'
+        if: steps.wdk-layout.outputs.cache-hit != 'true'
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $bootstrapper = Join-Path $env:RUNNER_TEMP 'wdksetup.exe'
+          # WDK 10.0.26100.6584 (matches the image SDK; hidapi-proven fwlink).
+          Invoke-WebRequest -Uri 'https://go.microsoft.com/fwlink/?linkid=2335869' -OutFile $bootstrapper -UseBasicParsing
+          $layout = Join-Path $env:GITHUB_WORKSPACE 'wdk-layout'
+          New-Item -ItemType Directory -Force -Path $layout | Out-Null
+          $proc = Start-Process -FilePath $bootstrapper -ArgumentList '/layout', $layout, '/quiet', '/ceip', 'off' -Wait -PassThru
+          if ($proc.ExitCode -notin 0, 3010) {
+            throw "WDK /layout failed with exit $($proc.ExitCode)"
+          }
+
+      - name: 'Install WDK'
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $inc = 'C:\Program Files (x86)\Windows Kits\10\Include'
+          $present = Get-ChildItem $inc -Directory -ErrorAction SilentlyContinue |
+            Where-Object { Test-Path (Join-Path $_.FullName 'wdf\umdf') } |
+            Select-Object -First 1
+          if ($present) {
+            Write-Output "WDK already present ($($present.Name))."
+            return
+          }
+          $setup = Join-Path $env:GITHUB_WORKSPACE 'wdk-layout\wdksetup.exe'
+          if (-not (Test-Path -LiteralPath $setup)) {
+            throw "WDK layout missing: $setup"
+          }
+          Write-Output 'Installing WDK from cached offline layout...'
+          $proc = Start-Process -FilePath $setup -ArgumentList '/features', '+', '/quiet', '/norestart', '/ceip', 'off' -Wait -PassThru
+          if ($proc.ExitCode -notin 0, 3010) {
+            throw "WDK install failed with exit $($proc.ExitCode)"
+          }
+          $present = Get-ChildItem $inc -Directory -ErrorAction SilentlyContinue |
+            Where-Object { Test-Path (Join-Path $_.FullName 'wdf\umdf') } |
+            Select-Object -First 1
+          if (-not $present) {
+            throw 'WDK installer finished but UMDF headers were not found.'
+          }
+          Write-Output "WDK installed ($($present.Name))."
+
       - name: 'Compute build version'
         id: version
         shell: pwsh
