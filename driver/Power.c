@@ -221,6 +221,18 @@ NTSTATUS DsHidMini_EvtDeviceD0Entry(
 	// 
 	pDevCtx->HidModeRestartRequested = FALSE;
 
+	//
+	// Restore the Automatic authority hand-off for this power cycle: without
+	// this, OutputReport.Mode stayed latched at whatever an application last
+	// wrote (or, before it was ever written, its initial WDF-context-zeroed
+	// value, which happens to already equal DriverHandled) for the entire
+	// lifetime of the device object, making the driver-to-application LED
+	// hand-off effectively a one-time, not per-power-cycle, event (issue
+	// #351). Device.c's hot-reload callback does the same reset before its
+	// own DsLed_Refresh call.
+	// 
+	pDevCtx->OutputReport.Mode = Ds3OutputReportModeDriverHandled;
+
 	if (pDevCtx->ConnectionType == DsDeviceConnectionTypeUsb)
 	{
 		status = DsUsb_D0Entry(Device, PreviousState);

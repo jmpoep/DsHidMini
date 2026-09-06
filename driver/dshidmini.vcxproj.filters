@@ -129,6 +129,9 @@
     <ClInclude Include="DsInternal.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="DsLed.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
     <ClInclude Include="..\include\DsHidMini\Ds3Types.h">
       <Filter>Header Files\Public</Filter>
     </ClInclude>
@@ -186,6 +189,9 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="DsHidMiniDrv.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="DsLed.c">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="Power.c">

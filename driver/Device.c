@@ -673,9 +673,12 @@ DsDevice_InitContext(
 		);
 
 		//
-		// Turn flashing LEDs off
+		// Turn flashing LEDs off. Uses the connection-agnostic setter
+		// (ConnectionType is already assigned above) instead of the
+		// Bluetooth-specific macro, so this matches the USB path and
+		// DsLed's own primitives.
 		// 
-		DS3_BTH_SET_LED(outReportBuffer, DS3_LED_OFF);
+		DsLed_SetFlags(pDevCtx, DS3_LED_OFF);
 
 #pragma region StartupDelay
 
@@ -1052,9 +1055,24 @@ DsDevice_HotReloadEventCallback(
 		}
 
 		//
-		// Changes to LED settings need to be pushed to the device
+		// Restore the Automatic authority hand-off for this reload before
+		// recomputing LED state: without this, OutputReport.Mode would stay
+		// latched at whatever an application last wrote (or its power-up
+		// default), and DsLed_IsDriverInCharge would never allow the new
+		// LED settings below to actually apply under Automatic authority
+		// (issue #349/#351).
 		// 
-		(void)DSHM_SendOutputReport(pDevCtx, Ds3OutputReportSourceDriverHighPriority);
+		pDevCtx->OutputReport.Mode = Ds3OutputReportModeDriverHandled;
+
+		//
+		// Changes to LED settings need to be pushed to the device. Unlike
+		// the previous plain DSHM_SendOutputReport call, DsLed_Refresh
+		// recomputes flags/effects from the newly loaded configuration and
+		// current battery status first, so a hot-reload into e.g. a
+		// different LED mode actually takes effect immediately instead of
+		// re-sending the stale pattern (issue #349).
+		// 
+		(void)DsLed_Refresh(pDevCtx, Ds3OutputReportSourceDriverHighPriority);
 
 	} while (FALSE);
 
