@@ -435,6 +435,17 @@ typedef struct _DEVICE_CONTEXT
 		//
 		WDFTIMER RumbleKeepAliveTimer;
 
+		//
+		// Set by DsHidMini_EvtDeviceD0Exit/DsHidMini_EvtDeviceReleaseHardware
+		// before RumbleKeepAliveTimer is stopped, and checked by
+		// DS3_PROCESS_RUMBLE_STRENGTH before (re-)arming it, so a rumble
+		// write racing with power-down cannot re-arm the timer after
+		// teardown has decided to stop it (issue #356). Reset per power
+		// cycle in DsHidMini_EvtDeviceD0Entry, matching the
+		// InputReportDropLogged/HidModeRestartRequested latches.
+		//
+		BOOLEAN IsTearingDown;
+
 	} RumbleControlState;
 
 	UINT32 SlotIndex;

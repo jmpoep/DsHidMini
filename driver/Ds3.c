@@ -1309,7 +1309,12 @@ VOID DS3_PROCESS_RUMBLE_STRENGTH(
 	// #356). Disarm it once both motors are silent - the next
 	// DS3_PROCESS_RUMBLE_STRENGTH call (if any) re-arms it.
 	//
-	if ((UCHAR)heavyRumble != 0 || (UCHAR)lightRumble != 0)
+	// IsTearingDown is checked here (rather than relying on
+	// DsHidMini_EvtDeviceD0Exit/ReleaseHardware's WdfTimerStop alone) so a
+	// rumble write racing with power-down on another thread cannot re-arm
+	// the timer after teardown already decided to stop it.
+	//
+	if (!Context->RumbleControlState.IsTearingDown && ((UCHAR)heavyRumble != 0 || (UCHAR)lightRumble != 0))
 	{
 		WdfTimerStart(
 			Context->RumbleControlState.RumbleKeepAliveTimer,
@@ -1330,6 +1335,15 @@ VOID DS3_PROCESS_RUMBLE_STRENGTH(
 // OutputReport.Lock here is safe - mirrors the lock/apply/send sequence
 // DsBth_EvtStartupDelayTimerFunc already uses.
 //
+// Deliberately does not stop itself here even if both motors happen to
+// read quiet: DS3_PROCESS_RUMBLE_STRENGTH is the sole authority that starts
+// and stops this timer, and it always stops the timer itself once strength
+// drops to zero. A callback-side stop based on this cache read (as this
+// used to do) can race a fresh WdfTimerStart from a rumble write that
+// arrives concurrently - cancelling a legitimately just-armed timer. Any
+// stray invocation this races against instead just resends the current
+// (by then already-zeroed) buffer once, which is harmless.
+//
 _Use_decl_annotations_
 VOID
 DS3_EvtRumbleKeepAliveTimerFunc(
@@ -1339,19 +1353,6 @@ DS3_EvtRumbleKeepAliveTimerFunc(
 	FuncEntry(TRACE_DSHIDMINIDRV);
 
 	const PDEVICE_CONTEXT pDevCtx = DeviceGetContext(WdfTimerGetParentObject(Timer));
-
-	//
-	// Belt-and-braces: if both motors have since gone quiet (e.g. a racing
-	// DS3_PROCESS_RUMBLE_STRENGTH call stopped the timer just as this
-	// callback was already queued), stop the timer and skip the send.
-	//
-	if (pDevCtx->RumbleControlState.HeavyCache == 0 && pDevCtx->RumbleControlState.LightCache == 0)
-	{
-		WdfTimerStop(Timer, FALSE);
-
-		FuncExitNoReturn(TRACE_DSHIDMINIDRV);
-		return;
-	}
 
 	const NTSTATUS status = DSHM_SendOutputReport(pDevCtx, Ds3OutputReportSourceDriverHighPriority);
 
