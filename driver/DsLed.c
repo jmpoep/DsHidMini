@@ -295,7 +295,15 @@ DsLed_Refresh(
 
 	DsLed_ApplyLocked(Context);
 
-	const NTSTATUS status = DSHM_SendOutputReportUnlocked(Context, Source);
+	//
+	// Match the no-op contract documented in DsLed.h: if the driver isn't
+	// in charge (e.g. Application authority), DsLed_ApplyLocked above was
+	// already a no-op, and sending here would just push out whatever
+	// application-owned report is already in the buffer, unrequested.
+	// 
+	const NTSTATUS status = DsLed_IsDriverInCharge(Context)
+		? DSHM_SendOutputReportUnlocked(Context, Source)
+		: STATUS_SUCCESS;
 
 	WdfWaitLockRelease(Context->OutputReport.Lock);
 

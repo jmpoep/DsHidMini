@@ -841,16 +841,14 @@ VOID DsUsb_EvtUsbInterruptPipeReadComplete(
 	pDevCtx->BatteryStatus = battery;
 
 	//
-	// Check if state has changed to Charged
+	// If charging, cycle LEDs; on any other change, recompute the full LED
+	// state for the new status. Not just the Charged transition: some
+	// replica controllers report real battery levels over USB even while
+	// not actively drawing charge current (issue #365), so any change away
+	// from Charging needs the same LED refresh as a Charged transition
+	// gets.
 	// 
-	if (battery == DsBatteryStatusCharged && battery != previousBattery)
-	{
-		(void)DsLed_Refresh(pDevCtx, Ds3OutputReportSourceDriverLowPriority);
-	}
-	//
-	// If charging, cycle LEDs
-	// 
-	else if (battery == DsBatteryStatusCharging)
+	if (battery == DsBatteryStatusCharging)
 	{
 		if (pDevCtx->Connection.Usb.ChargingCycleTimestamp.QuadPart == 0)
 		{
@@ -873,6 +871,10 @@ VOID DsUsb_EvtUsbInterruptPipeReadComplete(
 
 			DsLed_AdvanceChargingAnimation(pDevCtx);
 		}
+	}
+	else if (battery != previousBattery)
+	{
+		(void)DsLed_Refresh(pDevCtx, Ds3OutputReportSourceDriverLowPriority);
 	}
 
 	DSHM_ProcessHidInputReport(pDevCtx, pInReport);
@@ -1021,6 +1023,15 @@ DsBth_HidInterruptReadContinuousRequestCompleted(
 			);
 
 			//
+			// Update battery status before refreshing LEDs: DsLed_Refresh's
+			// battery-to-flags mapping reads Context->BatteryStatus itself
+			// (not a local variable), so it must already reflect the new
+			// value or the LED mapping would be computed from the stale
+			// status.
+			// 
+			pDevCtx->BatteryStatus = battery;
+
+			//
 			// Push the new battery status to LEDs. The old guard here
 			// ("DS3_GET_LED_FLAGS(pDevCtx) != 0x00") was dead code (issue
 			// #351 bug 7): the Bluetooth output buffer is always seeded
@@ -1031,11 +1042,6 @@ DsBth_HidInterruptReadContinuousRequestCompleted(
 			// to live here.
 			// 
 			(void)DsLed_Refresh(pDevCtx, Ds3OutputReportSourceDriverLowPriority);
-
-			//
-			// Update battery status
-			// 
-			pDevCtx->BatteryStatus = battery;
 		}
 	}
 
