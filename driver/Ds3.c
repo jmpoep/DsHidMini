@@ -10,10 +10,18 @@ const UCHAR G_Ds3UsbHidOutputReport[] = {
 	0x01, /* Report ID */
 	0x00, 0xFF, 0x00, 0xFF, 0x00,
 	0x00, 0x00, 0x00, 0x00, 0x00,
-	0xFF, 0x27, 0x10, 0x00, 0x32,
-	0xFF, 0x27, 0x10, 0x00, 0x32,
-	0xFF, 0x27, 0x10, 0x00, 0x32,
-	0xFF, 0x27, 0x10, 0x00, 0x32,
+	//
+	// LED flags byte (offset 10) starts off (see issue #351); the four
+	// 5-byte effect blocks below use the PS3-correct static effect
+	// (FF.00.01.00.01, see issue #365) rather than the previous
+	// FF.27.10.00.32, which is meaningless since no LED flag is set here
+	// anyway - DsLed_Apply/DsLed_SetFlagsAndEffects normalize both flags
+	// and effect blocks together before anything is ever sent.
+	// 
+	0xFF, 0x00, 0x01, 0x00, 0x01,
+	0xFF, 0x00, 0x01, 0x00, 0x01,
+	0xFF, 0x00, 0x01, 0x00, 0x01,
+	0xFF, 0x00, 0x01, 0x00, 0x01,
 	0x00, 0x00, 0x00, 0x00, 0x00,
 	0x00, 0x00, 0x00, 0x00, 0x00,
 	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
@@ -27,10 +35,16 @@ const UCHAR G_Ds3BthHidOutputReport[] = {
 	0x01, /* Report ID */
 	0x00, 0xFF, 0x00, 0xFF, 0x00,
 	0x00, 0x00, 0x00, 0x00, 0x00,
-	0xFF, 0x27, 0x10, 0x00, 0x32,
-	0xFF, 0x27, 0x10, 0x00, 0x32,
-	0xFF, 0x27, 0x10, 0x00, 0x32,
-	0xFF, 0x27, 0x10, 0x00, 0x32,
+	//
+	// See G_Ds3UsbHidOutputReport above (issues #351 and #365); LED flags
+	// byte (offset 11) starts off and is seeded to DS3_LED_OFF explicitly
+	// in Device.c right after this buffer is copied in, so both connection
+	// types are consistent from the very first output report.
+	// 
+	0xFF, 0x00, 0x01, 0x00, 0x01,
+	0xFF, 0x00, 0x01, 0x00, 0x01,
+	0xFF, 0x00, 0x01, 0x00, 0x01,
+	0xFF, 0x00, 0x01, 0x00, 0x01,
 	0x00, 0x00, 0x00, 0x00, 0x00,
 	0x00, 0x00, 0x00, 0x00, 0x00,
 	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
@@ -212,7 +226,7 @@ NTSTATUS DsUsb_Ds3Shutdown(PDEVICE_CONTEXT Context)
 // SET_REPORT, exactly like the PS3 itself does for the very first report
 // after enumeration and again right after enabling streaming (see issue
 // #321). Buffer must not include the report ID byte (Caller strips it, same
-// convention as DS3_GET_UNIFIED_OUTPUT_REPORT_BUFFER for USB).
+// convention as Ds3_GetUnifiedOutputReportBuffer for USB).
 // 
 NTSTATUS DsUsb_Ds3SendOutputReportControl(PDEVICE_CONTEXT Context, PUCHAR Buffer, ULONG BufferLength)
 {
@@ -923,7 +937,7 @@ NTSTATUS DsBth_Ds3SixaxisInit(PDEVICE_CONTEXT Context)
 //
 // Sets all properties for a specific Player LED
 // 
-VOID DS3_SET_LED_DURATION(
+VOID DsLed_SetEffect(
 	PDEVICE_CONTEXT Context,
 	UCHAR LedIndex,
 	UCHAR TotalDuration,
@@ -940,7 +954,7 @@ VOID DS3_SET_LED_DURATION(
 
 	PUCHAR buffer;
 
-	DS3_GET_UNIFIED_OUTPUT_REPORT_BUFFER(
+	Ds3_GetUnifiedOutputReportBuffer(
 		Context,
 		&buffer,
 		NULL
@@ -954,24 +968,9 @@ VOID DS3_SET_LED_DURATION(
 }
 
 //
-// Revert LED properties to default for a specific Player LED
-// 
-VOID DS3_SET_LED_DURATION_DEFAULT(PDEVICE_CONTEXT Context, UCHAR LedIndex)
-{
-	DS3_SET_LED_DURATION(
-		Context,
-		LedIndex,
-		0xFF, // Interval repeat never ends
-		0x27, // BasePortionDuration
-		0x00, // No OFF-portion
-		0x32 // Default ON-portion multiplier
-	);
-}
-
-//
 // Gets output report protocol-agnostic
 // 
-VOID DS3_GET_UNIFIED_OUTPUT_REPORT_BUFFER(
+VOID Ds3_GetUnifiedOutputReportBuffer(
 	PDEVICE_CONTEXT Context,
 	UCHAR** Buffer,
 	PSIZE_T BufferLength
@@ -1016,7 +1015,7 @@ VOID DS3_GET_UNIFIED_OUTPUT_REPORT_BUFFER(
 //
 // Gets output report without offset
 // 
-VOID DS3_GET_RAW_OUTPUT_REPORT_BUFFER(
+VOID Ds3_GetRawOutputReportBuffer(
 	PDEVICE_CONTEXT Context,
 	UCHAR** Buffer,
 	PSIZE_T BufferLength
@@ -1031,7 +1030,7 @@ VOID DS3_GET_RAW_OUTPUT_REPORT_BUFFER(
 //
 // Sets the LED flags byte
 // 
-VOID DS3_SET_LED_FLAGS(
+VOID DsLed_SetFlags(
 	PDEVICE_CONTEXT Context,
 	UCHAR Value
 )
@@ -1063,7 +1062,7 @@ VOID DS3_SET_LED_FLAGS(
 //
 // Gets the LED flags byte
 // 
-UCHAR DS3_GET_LED_FLAGS(
+UCHAR DsLed_GetFlags(
 	PDEVICE_CONTEXT Context
 )
 {

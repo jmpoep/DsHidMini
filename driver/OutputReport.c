@@ -3,7 +3,9 @@
 
 
 //
-// Enqueues current output report buffer to get sent to device.
+// Enqueues current output report buffer to get sent to device. Takes
+// Context->OutputReport.Lock; see DSHM_SendOutputReportUnlocked for callers
+// that already hold it.
 //
 _Use_decl_annotations_
 NTSTATUS
@@ -14,13 +16,39 @@ DSHM_SendOutputReport(
 {
 	FuncEntry(TRACE_DSHIDMINIDRV);
 
+	WdfWaitLockAcquire(Context->OutputReport.Lock, NULL);
+
+	const NTSTATUS status = DSHM_SendOutputReportUnlocked(Context, Source);
+
+	WdfWaitLockRelease(Context->OutputReport.Lock);
+
+	FuncExit(TRACE_DSHIDMINIDRV, "status=%!STATUS!", status);
+
+	return status;
+}
+
+//
+// Same as DSHM_SendOutputReport, but assumes Context->OutputReport.Lock is
+// already held by the caller (see DsLed.c and DsBth.Timers.c). Applies the
+// driver-owned custom LED pattern immediately before the report copy, so a
+// concurrently issued rumble-only or HID application send can never drop it
+// (issue #350) - unlike the previous unconditional re-apply, this now only
+// happens while the driver is actually in charge of LEDs.
+//
+_Use_decl_annotations_
+NTSTATUS
+DSHM_SendOutputReportUnlocked(
+	_In_ const PDEVICE_CONTEXT Context,
+	_In_ const DS_OUTPUT_REPORT_SOURCE Source
+)
+{
+	FuncEntry(TRACE_DSHIDMINIDRV);
+
 	NTSTATUS status;
 	PUCHAR sourceBuffer, sendBuffer;
 	size_t sourceBufferLength;
 	PDS_OUTPUT_REPORT_CONTEXT sendContext;
-	const PDS_DRIVER_CONFIGURATION pConfig = &Context->Configuration;	
-
-	WdfWaitLockAcquire(Context->OutputReport.Lock, NULL);
+	const PDS_DRIVER_CONFIGURATION pConfig = &Context->Configuration;
 
 	do
 	{
@@ -45,50 +73,21 @@ DSHM_SendOutputReport(
 		}
 
 		//
-		// Override LED pattern
+		// Re-apply the driver-owned custom LED pattern immediately before
+		// the copy below, so it survives sends triggered by rumble-only or
+		// HID application writes that did not go through DsLed_Apply
+		// (issue #350). Gated by DsLed_IsDriverInCharge so an application
+		// or Automatic hand-off is never overridden here.
 		// 
-		if (pConfig->LEDSettings.Mode == DsLEDModeCustomPattern)
+		if (pConfig->LEDSettings.Mode == DsLEDModeCustomPattern && DsLed_IsDriverInCharge(Context))
 		{
-			DS3_SET_LED_FLAGS(Context, pConfig->LEDSettings.CustomPatterns.LEDFlags);
-
-			DS3_SET_LED_DURATION(
-				Context,
-				0,
-				pConfig->LEDSettings.CustomPatterns.Player1.TotalDuration,
-				pConfig->LEDSettings.CustomPatterns.Player1.BasePortionDuration,
-				pConfig->LEDSettings.CustomPatterns.Player1.OffPortionMultiplier,
-				pConfig->LEDSettings.CustomPatterns.Player1.OnPortionMultiplier
-			);
-			DS3_SET_LED_DURATION(
-				Context,
-				1,
-				pConfig->LEDSettings.CustomPatterns.Player2.TotalDuration,
-				pConfig->LEDSettings.CustomPatterns.Player2.BasePortionDuration,
-				pConfig->LEDSettings.CustomPatterns.Player2.OffPortionMultiplier,
-				pConfig->LEDSettings.CustomPatterns.Player2.OnPortionMultiplier
-			);
-			DS3_SET_LED_DURATION(
-				Context,
-				2,
-				pConfig->LEDSettings.CustomPatterns.Player3.TotalDuration,
-				pConfig->LEDSettings.CustomPatterns.Player3.BasePortionDuration,
-				pConfig->LEDSettings.CustomPatterns.Player3.OffPortionMultiplier,
-				pConfig->LEDSettings.CustomPatterns.Player3.OnPortionMultiplier
-			);
-			DS3_SET_LED_DURATION(
-				Context,
-				3,
-				pConfig->LEDSettings.CustomPatterns.Player4.TotalDuration,
-				pConfig->LEDSettings.CustomPatterns.Player4.BasePortionDuration,
-				pConfig->LEDSettings.CustomPatterns.Player4.OffPortionMultiplier,
-				pConfig->LEDSettings.CustomPatterns.Player4.OnPortionMultiplier
-			);
+			DsLed_ApplyCustomPatternLocked(Context);
 		}
 
 		//
 		// Get full report (including IDs etc.)
 		//
-		DS3_GET_RAW_OUTPUT_REPORT_BUFFER(
+		Ds3_GetRawOutputReportBuffer(
 			Context,
 			&sourceBuffer,
 			&sourceBufferLength
@@ -121,8 +120,6 @@ DSHM_SendOutputReport(
 		);
 
 	} while (FALSE);
-
-	WdfWaitLockRelease(Context->OutputReport.Lock);
 
 	FuncExit(TRACE_DSHIDMINIDRV, "status=%!STATUS!", status);
 

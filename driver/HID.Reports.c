@@ -283,7 +283,7 @@ DSHM_WriteReport(
 		//
 		// Get raw buffer pointer (connection agnostic)
 		// 
-		DS3_GET_UNIFIED_OUTPUT_REPORT_BUFFER(
+		Ds3_GetUnifiedOutputReportBuffer(
 			DeviceContext,
 			&buffer,
 			&bufferSize
@@ -292,7 +292,7 @@ DSHM_WriteReport(
 		//
 		// Prevent LED states from being overwritten from outside
 		// 
-		if (DeviceContext->Configuration.LEDSettings.Authority == DsLEDAuthorityDriver)
+		if (DsLed_IsDriverInCharge(DeviceContext))
 		{
 			UCHAR ledBlock[sizeof(UCHAR) + (sizeof(DS_LED) * 4)];
 
@@ -379,17 +379,16 @@ DSHM_WriteReport(
 		//
 		// Only allowed when when in Automatic or Application setting
 		// 
-		if (DeviceContext->Configuration.LEDSettings.Authority != DsLEDAuthorityDriver)
+		if (!DsLed_IsDriverInCharge(DeviceContext))
 		{
 			if (isSetColor)
 			{
-				//
-				// Restore defaults to undo any (past) flashing animations
-				// 
-				DS3_SET_LED_DURATION_DEFAULT(DeviceContext, 0);
-				DS3_SET_LED_DURATION_DEFAULT(DeviceContext, 1);
-				DS3_SET_LED_DURATION_DEFAULT(DeviceContext, 2);
-				DS3_SET_LED_DURATION_DEFAULT(DeviceContext, 3);
+				static const DS_LED staticEffect = DS3_LED_EFFECT_STATIC;
+				static const DS_LED slowFlashEffect = DS3_LED_EFFECT_SLOW_FLASH;
+
+				UCHAR flags = DS3_LED_OFF;
+				const DS_LED* pEffect = &staticEffect;
+				BOOLEAN matched = TRUE;
 
 				//
 				// Single color RED intensity indicates battery level (Light only a single LED from 1 to 4)
@@ -397,17 +396,17 @@ DSHM_WriteReport(
 				if (g == 0x00 && b == 0x00)
 				{
 					if (r >= 202)
-						DS3_SET_LED_FLAGS(DeviceContext, DS3_LED_4);
+						flags = DS3_LED_4;
 					else if (r > 148)
-						DS3_SET_LED_FLAGS(DeviceContext, DS3_LED_3);
+						flags = DS3_LED_3;
 					else if (r > 94)
-						DS3_SET_LED_FLAGS(DeviceContext, DS3_LED_2);
+						flags = DS3_LED_2;
 					else if (r > 64)
-						DS3_SET_LED_FLAGS(DeviceContext, DS3_LED_1);
+						flags = DS3_LED_1;
 					else
 					{
-						DS3_SET_LED_FLAGS(DeviceContext, DS3_LED_1);
-						DS3_SET_LED_DURATION(DeviceContext, 0, 0xFF, 15, 127, 127);
+						flags = DS3_LED_1;
+						pEffect = &slowFlashEffect;
 					}
 				}
 				//
@@ -416,17 +415,17 @@ DSHM_WriteReport(
 				else if (g == 0x00 && b == 0xFF)
 				{
 					if (r >= 202)
-						DS3_SET_LED_FLAGS(DeviceContext, DS3_LED_1 | DS3_LED_2 | DS3_LED_3 | DS3_LED_4);
+						flags = DS3_LED_1 | DS3_LED_2 | DS3_LED_3 | DS3_LED_4;
 					else if (r > 148)
-						DS3_SET_LED_FLAGS(DeviceContext, DS3_LED_1 | DS3_LED_2 | DS3_LED_3);
+						flags = DS3_LED_1 | DS3_LED_2 | DS3_LED_3;
 					else if (r > 94)
-						DS3_SET_LED_FLAGS(DeviceContext, DS3_LED_1 | DS3_LED_2);
+						flags = DS3_LED_1 | DS3_LED_2;
 					else if (r > 64)
-						DS3_SET_LED_FLAGS(DeviceContext, DS3_LED_1);
+						flags = DS3_LED_1;
 					else
 					{
-						DS3_SET_LED_FLAGS(DeviceContext, DS3_LED_1);
-						DS3_SET_LED_DURATION(DeviceContext, 0, 0xFF, 15, 127, 127);
+						flags = DS3_LED_1;
+						pEffect = &slowFlashEffect;
 					}
 				}
 				//
@@ -435,22 +434,42 @@ DSHM_WriteReport(
 				else if (g == 0xFF && b == 0xFF)
 				{
 					if (r == 0x00)
-						DS3_SET_LED_FLAGS(DeviceContext, DS3_LED_OFF);
+						flags = DS3_LED_OFF;
 					else if (r >= 0x01 && r <= 0x0F)
-						DS3_SET_LED_FLAGS(DeviceContext, r << 1);
+						flags = r << 1;
+					else
+						matched = FALSE;
+				}
+				else
+				{
+					matched = FALSE;
+				}
+
+				//
+				// DsLed_SetFlagsAndEffects sets the flags byte and
+				// normalizes all four effect blocks against it in one
+				// call (static/slow-flash for lit LEDs, zero for unlit),
+				// replacing the previous reset-to-default-then-set-flags
+				// two-step sequence.
+				// 
+				if (matched)
+				{
+					DsLed_SetFlagsAndEffects(DeviceContext, flags, pEffect);
 				}
 			}
 
 			if (isSetFlashing)
 			{
+				static const DS_LED fastFlashEffect = DS3_LED_EFFECT_FAST_FLASH;
+
 				//
 				// Set to rapidly flash all 4 LEDs
 				// 
-				DS3_SET_LED_FLAGS(DeviceContext, DS3_LED_1 | DS3_LED_2 | DS3_LED_3 | DS3_LED_4);
-				DS3_SET_LED_DURATION(DeviceContext, 0, 0xFF, 3, 127, 127);
-				DS3_SET_LED_DURATION(DeviceContext, 1, 0xFF, 3, 127, 127);
-				DS3_SET_LED_DURATION(DeviceContext, 2, 0xFF, 3, 127, 127);
-				DS3_SET_LED_DURATION(DeviceContext, 3, 0xFF, 3, 127, 127);
+				DsLed_SetFlagsAndEffects(
+					DeviceContext,
+					DS3_LED_1 | DS3_LED_2 | DS3_LED_3 | DS3_LED_4,
+					&fastFlashEffect
+				);
 			}
 		}
 

@@ -804,9 +804,17 @@ VOID DsUsb_EvtUsbInterruptPipeReadComplete(
 	battery = (DS_BATTERY_STATUS)pInReport->BatteryStatus;
 
 	//
-	// Update battery status property
+	// Capture the previous value before it gets overwritten below, so both
+	// the property write and the Charged-transition check further down
+	// compare against the value that was actually in effect before this
+	// report (issue #351 bug 5).
 	// 
-	if (battery != pDevCtx->BatteryStatus)
+	const DS_BATTERY_STATUS previousBattery = pDevCtx->BatteryStatus;
+
+	//
+	// Update battery status property, only on an actual change
+	// 
+	if (battery != previousBattery)
 	{
 		WDF_DEVICE_PROPERTY_DATA propertyData;
 
@@ -823,38 +831,21 @@ VOID DsUsb_EvtUsbInterruptPipeReadComplete(
 		);
 	}
 
-	const PDS_LED_SETTINGS pLED = &pDevCtx->Configuration.LEDSettings;
+	//
+	// Always assign, regardless of which branch below runs. The Charging
+	// branch used to never do this, so the comparison above stayed
+	// "different" for the whole charging session and the persistent
+	// (registry-backed) property write above used to run on every single
+	// input report while charging (issue #351 bug 5).
+	// 
+	pDevCtx->BatteryStatus = battery;
 
 	//
 	// Check if state has changed to Charged
 	// 
-	if (battery == DsBatteryStatusCharged
-		&& battery != pDevCtx->BatteryStatus)
+	if (battery == DsBatteryStatusCharged && battery != previousBattery)
 	{
-		pDevCtx->BatteryStatus = battery;
-
-		if (
-			(pLED->Authority == DsLEDAuthorityDriver /* Driver wins over Automatic or Application */ ||
-				pDevCtx->OutputReport.Mode == Ds3OutputReportModeDriverHandled) &&
-			pLED->Mode > DsLEDModeUnknown && pLED->Mode < DsLEDModeCustomPattern
-			)
-		{
-			switch (pLED->Mode)
-			{
-			case DsLEDModeBatteryIndicatorPlayerIndex:
-
-				DS3_SET_LED_FLAGS(pDevCtx, DS3_LED_4);
-
-				break;
-			case DsLEDModeBatteryIndicatorBarGraph:
-
-				DS3_SET_LED_FLAGS(pDevCtx, DS3_LED_1 | DS3_LED_2 | DS3_LED_3 | DS3_LED_4);
-
-				break;
-			}
-
-			(void)DSHM_SendOutputReport(pDevCtx, Ds3OutputReportSourceDriverLowPriority);
-		}
+		(void)DsLed_Refresh(pDevCtx, Ds3OutputReportSourceDriverLowPriority);
 	}
 	//
 	// If charging, cycle LEDs
@@ -880,58 +871,8 @@ VOID DsUsb_EvtUsbInterruptPipeReadComplete(
 			// 
 			pDevCtx->Connection.Usb.ChargingCycleTimestamp.QuadPart = 0;
 
-			UCHAR led = DS3_LED_OFF;
-
-			switch (pLED->Mode)
-			{
-			case DsLEDModeBatteryIndicatorPlayerIndex:
-
-				led = DS3_GET_LED_FLAGS(pDevCtx) << 1;
-
-			//
-			// Cycle through
-			// 
-				if (led > DS3_LED_4 || led < DS3_LED_1)
-				{
-					led = DS3_LED_1;
-				}
-
-				break;
-			case DsLEDModeBatteryIndicatorBarGraph:
-
-				led = DS3_GET_LED_FLAGS(pDevCtx);
-
-			//
-			// Cycle graph from 1 to 4 and repeat
-			// 
-				if (led & 0xF0)
-				{
-					led = DS3_LED_1;
-				}
-				else
-				{
-					led |= (!led) ? DS3_LED_1 : led << 1;
-				}
-
-				break;
-			}
-
-			if (
-				(pLED->Authority == DsLEDAuthorityDriver /* Driver wins over Automatic or Application */ ||
-					pDevCtx->OutputReport.Mode == Ds3OutputReportModeDriverHandled) &&
-				/* validate mode range */
-				pLED->Mode > DsLEDModeUnknown && pLED->Mode < DsLEDModeCustomPattern
-				)
-			{
-				DS3_SET_LED_FLAGS(pDevCtx, led);
-
-				(void)DSHM_SendOutputReport(pDevCtx, Ds3OutputReportSourceDriverLowPriority);
-			}
+			DsLed_AdvanceChargingAnimation(pDevCtx);
 		}
-	}
-	else
-	{
-		pDevCtx->BatteryStatus = battery;
 	}
 
 	DSHM_ProcessHidInputReport(pDevCtx, pInReport);
@@ -1079,83 +1020,17 @@ DsBth_HidInterruptReadContinuousRequestCompleted(
 				&battery
 			);
 
-			const PDS_LED_SETTINGS pLED = &pDevCtx->Configuration.LEDSettings;
-
 			//
-			// Don't send update if not initialized yet or custom pattern
+			// Push the new battery status to LEDs. The old guard here
+			// ("DS3_GET_LED_FLAGS(pDevCtx) != 0x00") was dead code (issue
+			// #351 bug 7): the Bluetooth output buffer is always seeded
+			// with DS3_LED_OFF (0x20, non-zero) in Device.c, so this never
+			// evaluated to false. DsLed_Refresh does its own authority
+			// check and mode-aware battery mapping, replacing the
+			// copy-pasted authority guard and duplicated switch that used
+			// to live here.
 			// 
-			if (DS3_GET_LED_FLAGS(pDevCtx) != 0x00)
-			{
-				if (
-					(pLED->Authority == DsLEDAuthorityDriver /* Driver wins over Automatic or Application */ ||
-						pDevCtx->OutputReport.Mode == Ds3OutputReportModeDriverHandled) &&
-					/* validate mode range */
-					pLED->Mode > DsLEDModeUnknown && pLED->Mode < DsLEDModeCustomPattern
-					)
-				{
-					//
-					// Restore defaults to undo any (past) flashing animations
-					// 
-					DS3_SET_LED_DURATION_DEFAULT(pDevCtx, 0);
-					DS3_SET_LED_DURATION_DEFAULT(pDevCtx, 1);
-					DS3_SET_LED_DURATION_DEFAULT(pDevCtx, 2);
-					DS3_SET_LED_DURATION_DEFAULT(pDevCtx, 3);
-
-					switch (pLED->Mode)
-					{
-					case DsLEDModeBatteryIndicatorPlayerIndex:
-
-						switch (battery)
-						{
-						case DsBatteryStatusCharged:
-						case DsBatteryStatusFull:
-							DS3_SET_LED_FLAGS(pDevCtx, DS3_LED_4);
-							break;
-						case DsBatteryStatusHigh:
-							DS3_SET_LED_FLAGS(pDevCtx, DS3_LED_3);
-							break;
-						case DsBatteryStatusMedium:
-							DS3_SET_LED_FLAGS(pDevCtx, DS3_LED_2);
-							break;
-						case DsBatteryStatusLow:
-						case DsBatteryStatusDying:
-							DS3_SET_LED_FLAGS(pDevCtx, DS3_LED_1);
-							DS3_SET_LED_DURATION(pDevCtx, 0, 0xFF, 15, 127, 127);
-							break;
-						default:
-							break;
-						}
-
-						break;
-					case DsLEDModeBatteryIndicatorBarGraph:
-
-						switch (battery)
-						{
-						case DsBatteryStatusCharged:
-						case DsBatteryStatusFull:
-							DS3_SET_LED_FLAGS(pDevCtx, DS3_LED_1 | DS3_LED_2 | DS3_LED_3 | DS3_LED_4);
-							break;
-						case DsBatteryStatusHigh:
-							DS3_SET_LED_FLAGS(pDevCtx, DS3_LED_1 | DS3_LED_2 | DS3_LED_3);
-							break;
-						case DsBatteryStatusMedium:
-							DS3_SET_LED_FLAGS(pDevCtx, DS3_LED_1 | DS3_LED_2);
-							break;
-						case DsBatteryStatusLow:
-						case DsBatteryStatusDying:
-							DS3_SET_LED_FLAGS(pDevCtx, DS3_LED_1);
-							DS3_SET_LED_DURATION(pDevCtx, 0, 0xFF, 15, 127, 127);
-							break;
-						default:
-							break;
-						}
-
-						break;
-					}
-
-					(void)DSHM_SendOutputReport(pDevCtx, Ds3OutputReportSourceDriverLowPriority);
-				}
-			}
+			(void)DsLed_Refresh(pDevCtx, Ds3OutputReportSourceDriverLowPriority);
 
 			//
 			// Update battery status

@@ -9,7 +9,7 @@ todos:
     content: Add driver/DsLed.h and driver/DsLed.c with the authority check, effect constants, mode-aware battery mapping tables, lock-taking public entry points plus locked internals, DsLed_Apply/DsLed_Refresh and the charging animation; register in dshidmini.vcxproj, .filters and Trace.h
     status: pending
   - id: primitives
-    content: "Fix Ds3.c/Ds3.h: correct default effect blocks in the static output reports, drop the broken DS3_SET_LED_DURATION_DEFAULT and the dead DsUsb_Ds3IndicatorsOff, rename the ALL-CAPS LED functions"
+    content: "Fix Ds3.c/Ds3.h: correct default effect blocks in the static output reports, drop the broken DS3_SET_LED_DURATION_DEFAULT, rename the ALL-CAPS LED functions"
     status: pending
   - id: outputreport
     content: Split DSHM_SendOutputReport into a lock-taking public entry and an unlocked send helper; apply custom pattern in the locked send-prep path immediately before the report copy, only when DsLed_IsDriverInCharge
@@ -18,10 +18,10 @@ todos:
     content: Rewire DsBth.Timers.c, DsHidMiniDrv.c, Device.c and HID.Reports.c to the new DsLed API using the documented lock-ownership sequence; capture previous USB BatteryStatus before assigning, then write the property only on change; drop the dead LED-flags guard
     status: pending
   - id: config-power
-    content: Initialize LEDSettings.Authority in ConfigSetDefaults, align custom-pattern defaults, reset OutputReport.Mode on D0Entry, and also reset it to DriverHandled on hot-reload before DsLed_Refresh
+    content: Initialize LEDSettings.Authority in ConfigSetDefaults, align custom-pattern defaults, add an OutputReport.Mode reset to DriverHandled in DsHidMini_EvtDeviceD0Entry (none exists today), and also reset it on hot-reload before DsLed_Refresh
     status: pending
   - id: build
-    content: Build the driver (x64 Release) and review the resulting diff
+    content: Build the driver with NUKE (.\build.cmd Compile --configuration Release) and review the resulting diff
     status: pending
 isProject: false
 ---
@@ -63,7 +63,17 @@ flowchart TD
 6. **Wireless startup ignores both mode and authority.** `DsBth_EvtStartupDelayTimerFunc` always uses the single-LED mapping, so bar-graph users get the wrong display until the first battery change, and it writes LEDs even under `Application` authority.
 7. **Dead guard.** `if (DS3_GET_LED_FLAGS(pDevCtx) != 0x00)` in the Bluetooth battery handler can never be false, because `Device.c` seeds the Bluetooth buffer with `DS3_LED_OFF` (`0x20`).
 8. **Unsynchronized buffer access.** All of the above mutate the shared `OutputReportMemory` from USB/Bluetooth completion routines, the hot-reload thread-pool callback and the HID write path, while `OutputReport.Lock` is only held inside `DSHM_SendOutputReport`.
-9. **Minor.** `DsUsb_Ds3IndicatorsOff` is dead code; `ConfigSetDefaults` never initializes `LEDSettings.Authority`; `Device.c:678` uses the Bluetooth-specific `DS3_BTH_SET_LED` instead of the connection-agnostic setter; the four-LED effect magic numbers `(0xFF, 15, 127, 127)` and `(0xFF, 3, 127, 127)` are repeated across three files.
+9. **Minor.** `ConfigSetDefaults` never initializes `LEDSettings.Authority` (it only works today because the device context is zero-initialized and `0 == DsLEDAuthorityAutomatic`); `Device.c:678` uses the Bluetooth-specific `DS3_BTH_SET_LED` instead of the connection-agnostic setter; the slow-flash effect `(0xFF, 15, 127, 127)` is repeated across three files (`DsBth.Timers.c`, `DsHidMiniDrv.c`, `HID.Reports.c`) and the fast-flash effect `(0xFF, 3, 127, 127)` four times in `HID.Reports.c`.
+
+## Plan review (2026-09-06)
+
+All bug claims above were re-verified against the current `master` source and issues 349, 350, 351 and 365. Corrections made to the original draft:
+
+- `DsUsb_Ds3IndicatorsOff` does not exist anywhere in the repository; the "delete dead code" item was removed.
+- `DsHidMini_EvtDeviceD0Entry` ([driver/Power.c](../../driver/Power.c)) has **no** `OutputReport.Mode` reset today; the draft claimed one already existed. The reset is a new addition, applied in both D0Entry and the hot-reload callback.
+- Verification must go through NUKE (`.\build.cmd`), not raw `msbuild`, per workspace rules.
+- `DsLed_Apply` needs a defined behavior for `DsBatteryStatusCharging` (reachable via hot-reload while charging on USB); see section 1.
+- ControlApp only ever writes `Automatic` or `Driver` authority (`DshmTranslationUtils.cs:139-140`), so making `Application` strict only affects hand-edited JSON configs.
 
 ## Decisions already taken
 
@@ -71,7 +81,7 @@ flowchart TD
 - `DsLEDAuthorityApplication` becomes strict: the driver never touches LEDs. Only `Automatic` keeps the current start-in-driver-mode handoff.
 - Authority is checked per mutator: charging/apply/refresh require `DsLed_IsDriverInCharge`; `DsLed_SetFlagsAndEffects` does not.
 - Battery-to-flags tables stay mode-aware (single-LED vs bar-graph).
-- Hot-reload resets `OutputReport.Mode` to `DriverHandled` before refresh; D0Entry already does the same and stays unchanged.
+- Hot-reload resets `OutputReport.Mode` to `DriverHandled` before refresh, and D0Entry gets the same reset (neither exists today; the mode is currently latched to `WriteReportPassThrough` for the lifetime of the device object).
 
 ## Approach
 
@@ -114,13 +124,13 @@ Lock ownership (one sequence, no re-acquire on the same path):
 - returns immediately unless `DsLed_IsDriverInCharge`
 - for `DsLEDModeCustomPattern`, writes `CustomPatterns.LEDFlags` and the four configured blocks (also re-applied in locked send-prep immediately before the report copy, still gated by `DsLed_IsDriverInCharge`, so rumble/HID sends cannot drop a driver-owned custom pattern — issue 350)
 - for the two battery-indicator modes, applies a **mode-aware** mapping from `Context->BatteryStatus` (not one shared table). Separate entries for `None`, `Low`/`Dying`, `Medium`, `High`, and `Charged`/`Full` in both `DsLEDModeBatteryIndicatorPlayerIndex` (single LED 1–4) and `DsLEDModeBatteryIndicatorBarGraph` (fill 1 / 1–2 / 1–3 / 1–4), so bar-graph startup never receives single-LED flags. `Low`/`Dying` use `DS3_LED_EFFECT_SLOW_FLASH`; other known levels use `DS3_LED_EFFECT_STATIC`; `None` leaves flags at `DS3_LED_OFF`
+- for `DsBatteryStatusCharging` (USB only, reachable on hot-reload mid-charge) it leaves the flag byte untouched so the running animation frame survives, and only normalizes the effect blocks (static for lit LEDs, zero for unlit); `DsLed_AdvanceChargingAnimation` keeps owning the flag byte in that state
 - zeroes the effect block of every LED whose flag bit is clear, per the issue 351 discussion and matching what ControlApp already writes
 
 ### 2. Fix the primitives in [driver/Ds3.c](../../driver/Ds3.c) / [driver/Ds3.h](../../driver/Ds3.h)
 
 - Change the static `G_Ds3UsbHidOutputReport` / `G_Ds3BthHidOutputReport` LED blocks from `FF 27 10 00 32` to `FF 00 01 00 01`, and seed both with `DS3_LED_OFF` consistently.
 - Replace `DS3_SET_LED_DURATION_DEFAULT` (whose `0x27` is the truncated-`0x2710` bug) with `DsLed_SetFlagsAndEffects(..., DS3_LED_EFFECT_STATIC)`.
-- Delete the unused `DsUsb_Ds3IndicatorsOff`.
 - Rename the ALL-CAPS pseudo-macro functions to the driver's normal convention (`DsLed_SetFlags`, `DsLed_GetFlags`, `DsLed_SetEffect`, `Ds3_GetUnifiedOutputReportBuffer`, `Ds3_GetRawOutputReportBuffer`), keeping the genuinely-macro `DS3_USB_SET_LED` family as-is.
 
 ### 3. Rewire the call sites
@@ -129,10 +139,10 @@ Lock ownership (one sequence, no re-acquire on the same path):
 - [driver/DsHidMiniDrv.c](../../driver/DsHidMiniDrv.c): both battery handlers call `DsLed_Refresh`; the charging animation calls `DsLed_AdvanceChargingAnimation`. In the USB handler, capture `previous = pDevCtx->BatteryStatus`, assign `pDevCtx->BatteryStatus = battery` unconditionally, then write the battery property only when `previous != battery` (fixes bug 5). Drop the dead `DS3_GET_LED_FLAGS() != 0x00` guard (bug 7).
 - [driver/OutputReport.c](../../driver/OutputReport.c): lock-taking `DSHM_SendOutputReport` runs locked send-prep (custom pattern if `DsLed_IsDriverInCharge` and mode is custom, immediately before the copy), then the unlocked enqueue helper. After that prep, the send itself is a pure copy of the current buffer.
 - [driver/Device.c](../../driver/Device.c): use the connection-agnostic setter for the initial fill. In `DsDevice_HotReloadEventCallback`, reset `OutputReport.Mode` to `Ds3OutputReportModeDriverHandled` **before** `DsLed_Refresh(...)` so Automatic authority is restored and the new LED settings apply (fixes bug 4 / issue 349).
-- [driver/HID.Reports.c](../../driver/HID.Reports.c): replace both `Authority == / != DsLEDAuthorityDriver` checks with `!DsLed_IsDriverInCharge` / `DsLed_IsDriverInCharge`, and swap the repeated four-call `DS3_SET_LED_DURATION_DEFAULT` blocks for `DsLed_SetFlagsAndEffects` (no authority guard inside that helper).
+- [driver/HID.Reports.c](../../driver/HID.Reports.c): replace both `Authority == / != DsLEDAuthorityDriver` checks with `!DsLed_IsDriverInCharge` / `DsLed_IsDriverInCharge`, and swap the repeated four-call `DS3_SET_LED_DURATION_DEFAULT` blocks for `DsLed_SetFlagsAndEffects` (no authority guard inside that helper). Keep the existing order: `OutputReport.Mode = WriteReportPassThrough` is assigned (lines 281, 343) **before** the check, so under `Automatic` the first app write hands off exactly as today, while `Driver` still preserves the 21-byte LED block on SIXAXIS pass-through.
 - [driver/Configuration.c](../../driver/Configuration.c): set `Config->LEDSettings.Authority = DsLEDAuthorityAutomatic` explicitly in `ConfigSetDefaults`, and align the custom-pattern defaults with `DS3_LED_EFFECT_STATIC`.
-- [driver/Power.c](../../driver/Power.c): reset `OutputReport.Mode` to `Ds3OutputReportModeDriverHandled` in `DsHidMini_EvtDeviceD0Entry` so the Automatic handoff is per power cycle rather than permanent. Leave this D0Entry reset as-is; the extra hot-reload reset lives only in the Device.c callback above.
+- [driver/Power.c](../../driver/Power.c): **add** a reset of `OutputReport.Mode` to `Ds3OutputReportModeDriverHandled` in `DsHidMini_EvtDeviceD0Entry` (next to the existing `InputReportDropLogged` / `HidModeRestartRequested` re-arms) so the Automatic handoff is per power cycle rather than permanent. No such reset exists today.
 
 ### 4. Verification
 
-`msbuild dshidmini.sln` for x64 (Release) to confirm the driver still compiles; there is no test harness on the driver side, so the remaining validation is manual on hardware. Work happens on a new `fix/351-unify-led-handling` branch off `master`.
+Build through NUKE per workspace rules: `.\build.cmd Compile --configuration Release` (local builds compile the solution's default platform; `BuildDmf` runs first automatically). There is no test harness on the driver side, so the remaining validation is manual on hardware. Work happens on a new `fix/351-unify-led-handling` branch off `master`.

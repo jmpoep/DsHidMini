@@ -62,7 +62,7 @@ typedef enum
 } DS3_BUTTON_COMBO_OFFSET;
 
 
-VOID DS3_SET_LED_DURATION(
+VOID DsLed_SetEffect(
 	PDEVICE_CONTEXT Context,
 	UCHAR LedIndex,
 	UCHAR TotalDuration,
@@ -71,29 +71,24 @@ VOID DS3_SET_LED_DURATION(
 	UCHAR OnPortionMultiplier
 );
 
-VOID DS3_SET_LED_DURATION_DEFAULT(
-	PDEVICE_CONTEXT Context,
-	UCHAR LedIndex
-);
-
-VOID DS3_GET_UNIFIED_OUTPUT_REPORT_BUFFER(
+VOID Ds3_GetUnifiedOutputReportBuffer(
 	PDEVICE_CONTEXT Context,
 	UCHAR** Buffer,
 	PSIZE_T BufferLength
 );
 
-VOID DS3_GET_RAW_OUTPUT_REPORT_BUFFER(
+VOID Ds3_GetRawOutputReportBuffer(
 	PDEVICE_CONTEXT Context,
 	UCHAR** Buffer,
 	PSIZE_T BufferLength
 );
 
-VOID DS3_SET_LED_FLAGS(
+VOID DsLed_SetFlags(
 	PDEVICE_CONTEXT Context,
 	UCHAR Value
 );
 
-UCHAR DS3_GET_LED_FLAGS(
+UCHAR DsLed_GetFlags(
 	PDEVICE_CONTEXT Context
 );
 

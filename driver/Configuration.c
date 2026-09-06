@@ -1076,6 +1076,15 @@ ConfigSetDefaults(
 	Config->RumbleSettings.AlternativeMode.ToggleButtonCombo.Buttons[2] = DS3_BUTTON_COMBO_OFFSET_PS;
 
 	Config->LEDSettings.Mode = DsLEDModeBatteryIndicatorPlayerIndex;
+
+	//
+	// Explicit default (issue #351 minor): this previously relied on the
+	// device context being zero-initialized, since DsLEDAuthorityAutomatic
+	// happens to be 0. Spelling it out here makes the default independent
+	// of that coincidence.
+	// 
+	Config->LEDSettings.Authority = DsLEDAuthorityAutomatic;
+
 	Config->LEDSettings.CustomPatterns.LEDFlags = DS3_LED_1;
 
 	const PDS_LED pPlayerSlots[] =
@@ -1086,6 +1095,10 @@ ConfigSetDefaults(
 		&Config->LEDSettings.CustomPatterns.Player4,
 	};
 
+	//
+	// Matches DS3_LED_EFFECT_STATIC from DsLed.h (the PS3-correct static
+	// effect, issue #365).
+	// 
 	for (ULONGLONG playerIndex = 0; playerIndex < _countof(pPlayerSlots); playerIndex++)
 	{
 		pPlayerSlots[playerIndex]->TotalDuration = 0xFF;

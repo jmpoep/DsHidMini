@@ -687,7 +687,7 @@ NTSTATUS DsUsb_D0Entry(WDFDEVICE Device, WDF_POWER_DEVICE_STATE PreviousState)
 			PUCHAR outputReportBuffer = NULL;
 			SIZE_T outputReportBufferLength = 0;
 
-			DS3_GET_UNIFIED_OUTPUT_REPORT_BUFFER(
+			Ds3_GetUnifiedOutputReportBuffer(
 				pDevCtx,
 				&outputReportBuffer,
 				&outputReportBufferLength

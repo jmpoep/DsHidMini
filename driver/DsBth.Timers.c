@@ -44,41 +44,25 @@ DsBth_EvtStartupDelayTimerFunc(
 	}
 
 	//
-	// We have not yet received an input report from the remote device
+	// Apply LEDs (mode-aware, authority-checked - fixes issue #351 for the
+	// wireless startup path, which used to always use the single-LED
+	// mapping and write regardless of authority), set rumble durations and
+	// strength, then send - all under one hold of the lock so nothing can
+	// copy a half-updated buffer in between (fixes issue #351/bug 6).
 	// 
-	if (pDevCtx->BatteryStatus == DsBatteryStatusNone)
-	{
-		DS3_SET_LED_FLAGS(pDevCtx, DS3_LED_OFF);
-	}
-	else
-	{
-		switch (pDevCtx->BatteryStatus)
-		{
-		case DsBatteryStatusCharged:
-		case DsBatteryStatusFull:
-			DS3_SET_LED_FLAGS(pDevCtx, DS3_LED_4);
-			break;
-		case DsBatteryStatusHigh:
-			DS3_SET_LED_FLAGS(pDevCtx, DS3_LED_3);
-			break;
-		case DsBatteryStatusMedium:
-			DS3_SET_LED_FLAGS(pDevCtx, DS3_LED_2);
-			break;
-		case DsBatteryStatusLow:
-		case DsBatteryStatusDying:
-			DS3_SET_LED_FLAGS(pDevCtx, DS3_LED_1);
-			DS3_SET_LED_DURATION(pDevCtx, 0, 0xFF, 15, 127, 127);
-			break;
-		default:
-			break;
-		}
-	}
-		
+	WdfWaitLockAcquire(pDevCtx->OutputReport.Lock, NULL);
+
+	DsLed_ApplyLocked(pDevCtx);
+
 	DS3_SET_SMALL_RUMBLE_DURATION(pDevCtx, 0xFE);
 	DS3_SET_LARGE_RUMBLE_DURATION(pDevCtx, 0xFE);
 	DS3_SET_BOTH_RUMBLE_STRENGTH(pDevCtx, 0x00, 0x00);
 
-	if (!NT_SUCCESS(status = DSHM_SendOutputReport(pDevCtx, Ds3OutputReportSourceDriverHighPriority)))
+	status = DSHM_SendOutputReportUnlocked(pDevCtx, Ds3OutputReportSourceDriverHighPriority);
+
+	WdfWaitLockRelease(pDevCtx->OutputReport.Lock);
+
+	if (!NT_SUCCESS(status))
 	{
 		TraceError(
 			TRACE_DSBTH,
