@@ -1249,6 +1249,28 @@ VOID DS3_PROCESS_RUMBLE_STRENGTH(
 				Context->OutputReportMemory,
 				NULL
 			), (UCHAR)lightRumble);
+
+		//
+		// Always accompany a strength update with an explicit, finite
+		// duration (issue #356). Without this the duration bytes are
+		// whatever residue was last written into the shared buffer -
+		// which used to be an accidental 0xFF (infinite) on USB and an
+		// accidental, permanently time-capped 0xFE on Bluetooth. Matching
+		// the real PS3 console's own behaviour (see
+		// docs/PS3_USB_STARTUP.md) makes rumble time out on its own if the
+		// keep-alive timer below (or the requesting application) ever
+		// stops updating it.
+		//
+		DS3_USB_SET_LARGE_RUMBLE_DURATION(
+			(PUCHAR)WdfMemoryGetBuffer(
+				Context->OutputReportMemory,
+				NULL
+			), DS3_RUMBLE_DURATION_DEFAULT);
+		DS3_USB_SET_SMALL_RUMBLE_DURATION(
+			(PUCHAR)WdfMemoryGetBuffer(
+				Context->OutputReportMemory,
+				NULL
+			), DS3_RUMBLE_DURATION_DEFAULT);
 		break;
 
 	case DsDeviceConnectionTypeBth:
@@ -1263,7 +1285,85 @@ VOID DS3_PROCESS_RUMBLE_STRENGTH(
 				Context->OutputReportMemory,
 				NULL
 			), (UCHAR)lightRumble);
+
+		//
+		// See USB case above (issue #356).
+		//
+		DS3_BTH_SET_LARGE_RUMBLE_DURATION(
+			(PUCHAR)WdfMemoryGetBuffer(
+				Context->OutputReportMemory,
+				NULL
+			), DS3_RUMBLE_DURATION_DEFAULT);
+		DS3_BTH_SET_SMALL_RUMBLE_DURATION(
+			(PUCHAR)WdfMemoryGetBuffer(
+				Context->OutputReportMemory,
+				NULL
+			), DS3_RUMBLE_DURATION_DEFAULT);
 		break;
 	}
 
+	//
+	// Arm (or restart) the keep-alive timer while at least one motor is
+	// active, so the finite duration set above never times out for as
+	// long as the requesting application keeps rumble engaged (issue
+	// #356). Disarm it once both motors are silent - the next
+	// DS3_PROCESS_RUMBLE_STRENGTH call (if any) re-arms it.
+	//
+	if ((UCHAR)heavyRumble != 0 || (UCHAR)lightRumble != 0)
+	{
+		WdfTimerStart(
+			Context->RumbleControlState.RumbleKeepAliveTimer,
+			WDF_REL_TIMEOUT_IN_MS(DS3_RUMBLE_KEEPALIVE_PERIOD_MS)
+		);
+	}
+	else
+	{
+		WdfTimerStop(Context->RumbleControlState.RumbleKeepAliveTimer, FALSE);
+	}
+}
+
+//
+// Periodically re-sends the current output report while rumble is active,
+// so the finite motor duration DS3_PROCESS_RUMBLE_STRENGTH now writes on
+// every strength update (issue #356) never lapses as long as at least one
+// motor stays engaged. Runs at PASSIVE_LEVEL (UMDF), so taking
+// OutputReport.Lock here is safe - mirrors the lock/apply/send sequence
+// DsBth_EvtStartupDelayTimerFunc already uses.
+//
+_Use_decl_annotations_
+VOID
+DS3_EvtRumbleKeepAliveTimerFunc(
+	WDFTIMER Timer
+)
+{
+	FuncEntry(TRACE_DSHIDMINIDRV);
+
+	const PDEVICE_CONTEXT pDevCtx = DeviceGetContext(WdfTimerGetParentObject(Timer));
+
+	//
+	// Belt-and-braces: if both motors have since gone quiet (e.g. a racing
+	// DS3_PROCESS_RUMBLE_STRENGTH call stopped the timer just as this
+	// callback was already queued), stop the timer and skip the send.
+	//
+	if (pDevCtx->RumbleControlState.HeavyCache == 0 && pDevCtx->RumbleControlState.LightCache == 0)
+	{
+		WdfTimerStop(Timer, FALSE);
+
+		FuncExitNoReturn(TRACE_DSHIDMINIDRV);
+		return;
+	}
+
+	const NTSTATUS status = DSHM_SendOutputReport(pDevCtx, Ds3OutputReportSourceDriverHighPriority);
+
+	if (!NT_SUCCESS(status))
+	{
+		TraceError(
+			TRACE_DSHIDMINIDRV,
+			"DSHM_SendOutputReport failed with status %!STATUS!",
+			status
+		);
+		EventWriteFailedWithNTStatus(__FUNCTION__, L"DSHM_SendOutputReport", status);
+	}
+
+	FuncExitNoReturn(TRACE_DSHIDMINIDRV);
 }

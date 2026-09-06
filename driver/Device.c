@@ -862,6 +862,37 @@ DsDevice_InitContext(
 			break;
 		}
 
+		//
+		// Create periodic timer used to keep active rumble alive against
+		// the finite motor duration now written by
+		// DS3_PROCESS_RUMBLE_STRENGTH (see issue #356). This is the
+		// driver's only periodic timer; every other one here is one-shot.
+		// 
+
+		WDF_OBJECT_ATTRIBUTES_INIT(&attributes);
+		attributes.ParentObject = Device;
+
+		WDF_TIMER_CONFIG_INIT_PERIODIC(
+			&timerCfg,
+			DS3_EvtRumbleKeepAliveTimerFunc,
+			DS3_RUMBLE_KEEPALIVE_PERIOD_MS
+		);
+
+		if (!NT_SUCCESS(status = WdfTimerCreate(
+			&timerCfg,
+			&attributes,
+			&pDevCtx->RumbleControlState.RumbleKeepAliveTimer
+		)))
+		{
+			TraceError(
+				TRACE_DEVICE,
+				"WdfTimerCreate (RumbleKeepAliveTimer) failed with status %!STATUS!",
+				status
+			);
+			EventWriteFailedWithNTStatus(__FUNCTION__, L"WdfTimerCreate (RumbleKeepAliveTimer)", status);
+			break;
+		}
+
 #pragma region IPC
 
 		SECURITY_DESCRIPTOR sd = { 0 };

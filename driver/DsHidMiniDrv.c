@@ -1159,18 +1159,29 @@ DsBth_HidInterruptReadContinuousRequestCompleted(
 					pDevCtx->RumbleControlState.AltMode.IsEnabled = !pDevCtx->RumbleControlState.AltMode.IsEnabled;
 
 					//
-					// Send rumble feedback to indicate change in rumble mode
+					// Send rumble feedback to indicate change in rumble mode.
+					// DS3_SET_BOTH_RUMBLE_STRENGTH writes its own finite
+					// default duration (issue #356), so the short, one-shot
+					// durations for this feedback buzz are applied
+					// afterwards, overwriting that default just before the
+					// send below.
 					//
+					DS3_SET_BOTH_RUMBLE_STRENGTH(pDevCtx, 0x00, 0xFF);
 					DS3_SET_LARGE_RUMBLE_DURATION(pDevCtx, 0x30);
 					DS3_SET_SMALL_RUMBLE_DURATION(pDevCtx, 0x20);
-					DS3_SET_BOTH_RUMBLE_STRENGTH(pDevCtx, 0x00, 0xFF);
 					(void)DSHM_SendOutputReport(pDevCtx, Ds3OutputReportSourceDriverLowPriority);
 
 					//
-					// Restore default rumble duration
+					// Reset cached rumble strength back to idle instead of
+					// restoring an infinite duration (issue #356): leaving
+					// RumbleControlState.LightCache at 0xFF here used to
+					// mean the *next* unrelated send (e.g. an LED battery
+					// update) would silently re-buzz the light motor
+					// forever. Zeroing strength also stops the keep-alive
+					// timer DS3_SET_BOTH_RUMBLE_STRENGTH just armed, so this
+					// feedback buzz stays a single short pulse.
 					//
-					DS3_SET_LARGE_RUMBLE_DURATION(pDevCtx, 0xFF);
-					DS3_SET_SMALL_RUMBLE_DURATION(pDevCtx, 0xFF);
+					DS3_SET_BOTH_RUMBLE_STRENGTH(pDevCtx, 0x00, 0x00);
 
 
 					//

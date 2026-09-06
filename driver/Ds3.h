@@ -33,6 +33,21 @@ extern const UCHAR G_Ds3BthHidOutputReport[];
 #define DS3_BTH_SET_SMALL_RUMBLE_STRENGTH(_buf_, _str_)  ((_buf_)[4] = (_str_) > 0 ? 0x01 : 0x00)
 #define DS3_BTH_SET_LARGE_RUMBLE_STRENGTH(_buf_, _str_)  ((_buf_)[6] = (_str_))
 
+//
+// Motor duration the PS3 console writes on every output report (see
+// docs/PS3_USB_STARTUP.md). Finite on purpose: a stalled driver or a
+// crashed application cannot leave the motors running, because the
+// controller times them out on its own (issue #356).
+//
+#define DS3_RUMBLE_DURATION_DEFAULT     0x96
+
+//
+// Keep-alive re-send period while at least one motor is active. Must stay
+// safely below whatever 0x96 expands to on real hardware, and above the
+// ~25 ms window in which a DS3 drops back-to-back output reports (issue #20).
+//
+#define DS3_RUMBLE_KEEPALIVE_PERIOD_MS  200
+
 #define DS3_USB_COMMON_ENABLE		0x42, 0x0C, 0x00, 0x00
 #define DS3_USB_COMMON_DISABLE		0x42, 0x0B, 0x00, 0x00
 #define DS3_BTH_SIXAXIS_ENABLE		0x53, 0xF4, 0x42, 0x03, 0x00, 0x00

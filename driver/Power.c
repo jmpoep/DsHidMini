@@ -119,6 +119,17 @@ DsHidMini_EvtDeviceReleaseHardware(
 	const PDEVICE_CONTEXT pDevCtx = DeviceGetContext(Device);
 
 	//
+	// Idempotent: if D0Exit already stopped this (normal removal path)
+	// this is a no-op; if D0Entry failed before D0Exit could run (issue
+	// #311), this is what prevents the keep-alive from firing against a
+	// device that is about to be surprise-removed (issue #356).
+	//
+	if (pDevCtx->RumbleControlState.RumbleKeepAliveTimer)
+	{
+		WdfTimerStop(pDevCtx->RumbleControlState.RumbleKeepAliveTimer, TRUE);
+	}
+
+	//
 	// Stop delivering input reports before any DMF Module gets a chance to
 	// close. Idempotent: if D0Exit already stopped this target (normal
 	// removal path) this is a no-op; if D0Entry failed before D0Exit could
@@ -274,6 +285,16 @@ NTSTATUS DsHidMini_EvtDeviceD0Exit(
 	FuncEntry(TRACE_POWER);
 
 	const PDEVICE_CONTEXT pDevCtx = DeviceGetContext(Device);
+
+	//
+	// Stop the rumble keep-alive before the output worker below, so it
+	// cannot enqueue a send against a worker that is about to stop
+	// accepting new work (issue #356).
+	//
+	if (pDevCtx->RumbleControlState.RumbleKeepAliveTimer)
+	{
+		WdfTimerStop(pDevCtx->RumbleControlState.RumbleKeepAliveTimer, TRUE);
+	}
 
 	//
 	// Stop processing received output report packets
