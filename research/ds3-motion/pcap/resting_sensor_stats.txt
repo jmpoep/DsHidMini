@@ -1,0 +1,25 @@
+== 2024-04-15_DS3-SIXAXIS_PS3_plugin reports=1199
+  X: avg=  505.1 min= 400 max= 601
+  Y: avg=  553.5 min= 413 max= 621
+  Z: avg=  468.9 min= 398 max= 549
+  G: avg=  757.5 min=   2 max= 997
+== 2024-04-15_DS3-CECHZC2E-A1_PS3_plugin reports=1853
+  X: avg=  511.0 min= 465 max= 555
+  Y: avg=  491.1 min= 469 max= 576
+  Z: avg=  398.3 min= 341 max= 433
+  G: avg=  486.8 min=   5 max= 563
+== 2024-04-15_DS3-CECHZC2E-B1_PS3_plugin reports=1837
+  X: avg=  497.5 min= 462 max= 519
+  Y: avg=  562.7 min= 525 max= 622
+  Z: avg=  423.9 min= 387 max= 532
+  G: avg=  493.7 min= 422 max= 627
+== 2024-04-15_DS3-CECHZC2U-A2_PS3_plugin reports=1129
+  X: avg=  505.1 min= 486 max= 578
+  Y: avg=  553.2 min= 507 max= 582
+  Z: avg=  408.2 min= 381 max= 511
+  G: avg=  385.8 min=   5 max= 511
+== 2024-05-13_DS3-CECHZC2E-A1_PS3_Rumble_Tests reports=5978
+  X: avg=  495.1 min=   0 max= 551
+  Y: avg=  531.9 min=   0 max= 607
+  Z: avg=  398.3 min=   0 max= 463
+  G: avg=  487.0 min=   0 max= 575

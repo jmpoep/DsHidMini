@@ -299,7 +299,7 @@ layout above.
 ## Pad matrix
 
 Ten successful WinUSB probe runs over eight physical pads (2026-09-06, dumps in
-`D:\FOSS\DsHidMini-motion-rnd\dumps\`). "Path" is the gyro path
+[`research/ds3-motion/dumps/`](../research/ds3-motion/dumps/)). "Path" is the gyro path
 `sixaxis.sys` would take for that pad, derived from the `Feature 0x01`
 calibration field list exactly as in [Gyroscope](#gyroscope).
 
@@ -796,6 +796,59 @@ Ordered by how visible they are to an application that expects `sixaxis.sys`:
    gyro. If `0xEF` fails outright, fall back to `zero = 512,
    oneG = 512 - 113`.
 
+## Status and implementation roadmap
+
+Phase status: **research complete enough to implement**. No driver code was
+changed. Tools and raw dumps live in [`research/ds3-motion/`](../research/ds3-motion/README.md).
+
+### Verified (a driver can rely on these)
+
+- Accel formula: gain `0x71` = 113 over `(zero - oneG)`, X mirrored **after** cal (`0x3FF - cal`), no clamp, `zero == oneG` passthrough. Reproduces all 126 live values. See [Accelerometer calibration](#accelerometer-calibration).
+- EEPROM page `0xA0`: eight BE u16 at buffer offset `0x11`; gyro pair = (raw zero, cal byte). Sony reads **only** this page. See [Page 0xA0](#page-0xa0-sensor-calibration).
+- Gyro sign: raw **falls** for clockwise-from-above; every `sixaxis.sys` path inverts, so clockwise is **positive (>512)** in Sony's reported value.
+- Gyro scale: ~1.4 counts per (deg/s) (~0.7 deg/s per count, ~±360 deg/s FS), ±15% (hand-turned 90°). Page `0xB0` is not the scale.
+- Cal byte: 26.4 counts/step (Sony `0x6999` Q10; hardware 26.69 ± 0.21). Placement `[5]/[6]` if Feature `0x01` lists field `0x07`, else `[3]/[4]` for the SIXAXIS path. See [Gyroscope](#gyroscope).
+- Three gyro paths from Feature `0x01` **field list**, not type bytes: `PLAIN_ZERO`, `HW_CAL`, `SIXAXIS`. SIXAXIS-2 reports type `18 18 18 18` but takes the SIXAXIS path. Class curve on EEPROM `0x00` (`d2 d3…` DS3, `c3 c4…` SIXAXIS, zeros on fakes) is the better discriminator.
+- Counterfeits return a plausible `0200 0180` template so `zero == oneG` never fires. Fake DS3: frozen sensors, ~920 Hz. Obigben: real accel, dead gyro. Detect behaviourally.
+- `ds3cal.dll` is a field-for-field port of Sony's tracker (`research/ds3-motion/probe/GyroCal.cs`).
+
+### Implementation checklist (ordered)
+
+No code in this pass. Start here next time:
+
+1. USB connect (after `0xF2`/`0xF5`, before first output; see `docs/PS3_USB_STARTUP.md`): `SET Feature 0xEF` page `0xA0` + `GET 0xEF`. Cache the four pairs in device context. `driver/DsHidMiniDrv.c` `DSHM_ProcessHidInputReport` / USB start path.
+2. Read `Feature 0x01` offsets 8 and `0x25`/`0x26..`; derive `DS3_TYPE` / `PLAIN_ZERO` / `HW_CAL`. Place cal byte at output `[5]/[6]` or `[3]/[4]`.
+3. Accel in `driver/DsHid.c` `DS3_RAW_TO_SIXAXIS_HID_INPUT_REPORT` and `DS3_RAW_TO_DS4WINDOWS_HID_INPUT_REPORT`: apply the gain-113 formula; move the existing X mirror to **after** cal. Raw layout: `include/DsHidMini/Ds3Types.h` `DS3_RAW_INPUT_REPORT`.
+4. Gyro: invert sign (`512 + zeroRef - raw` or `0x3FF - raw` on `HW_CAL`); apply EEPROM zero. Port `research/ds3-motion/probe/GyroCal.cs` for `HW_CAL`/`SIXAXIS` and re-send the cal byte when the tracker steps. Sending the factory byte once is **not** enough (DS3-A2 idles ~160 counts off).
+5. Counterfeit: if sensors never change, suppress motion / raw-passthrough. Keep `zero == oneG` as a blank-EEPROM guard only.
+6. DS4 frame: source frame is known; permutation + remaining signs still need a reference DS4 capture. Scale yaw by ~1.4 counts/(deg/s) into DS4's 16 LSB/(deg/s) (~gain 11.4).
+7. IPC + ControlApp: expose cal pairs, path flags, live raw/cal, tracker cal-byte.
+8. Bluetooth: same feature reports over BthPS3 HID control (`0xEF` over BT unverified).
+
+Headline bug today: DsHidMini gyro sign is **backwards** vs `sixaxis.sys` on all three paths, and unzeroed. Full list: [Discrepancies](#discrepancies-a-driver-implementation-must-resolve).
+
+### Open measurements
+
+| Item | How to get it |
+| --- | --- |
+| Absolute gyro scale (±15% now) | Turntable / known-rate reference, not more hand turns |
+| Cal-byte accepted without field `0x07`? | `--calbyte` on DS3-A1a, DS3-E, Obigben, Fake DS3 (probe currently skips) |
+| `[3]/[4]` placement on live SIXAXIS | `--wait` + stream before it dies, or HID path (not WinUSB) |
+| SIXAXIS orientation table | Same `--interactive` six poses, needs a live stream |
+| DS3-A1b ~17-count warm-up drift | Leave pad still 30 s, log raw G |
+| `0xEF` over Bluetooth | Same SET/GET page `0xA0` via BthPS3 |
+| Page `0xB0` meaning | Curiosity; unused by Sony |
+| DS4 axis permutation | Reference DS4 capture vs known DS3 frame |
+
+### Session log
+
+- 2026-09-06 — pcap mining (`tshark` HID control) of CircumSpector PS3 captures.
+- 2026-09-06 — headless Ghidra of `ds3cal.dll`; clean-room `GyroCal.cs`.
+- 2026-09-06 — WinUSB probe; genuine DS3 + clone dumps; orientation table.
+- 2026-09-06 — Sony `sixaxis.sys` decompiled; formula, `0xA0` layout, three gyro paths verified (`386da4c`).
+- 2026-09-06 — eight-pad matrix, measured yaw sign/scale, cal-byte 26.69 (`a8ab908`).
+- 2026-09-06 — research tree persisted under `research/ds3-motion/`.
+
 ## Open questions
 
 - The **absolute** gyro scale is only good to ~15 %, because the reference
@@ -836,8 +889,13 @@ Ordered by how visible they are to an application that expects `sixaxis.sys`:
 
 ## Tooling
 
-Everything binary or throwaway lives outside the repository in
-`D:\FOSS\DsHidMini-motion-rnd\` (not committed):
+Reusable pieces are in [`research/ds3-motion/`](../research/ds3-motion/README.md)
+(probe, dumps, analysis scripts, pcap extractor, Ghidra export script). How to
+bind a pad and run a measurement is in that README. Proprietary binaries
+(`ds3cal.dll`, `sixaxis.sys`) and Ghidra project files stay out of the repo.
+
+Private R&D leftovers (decompiled C, one-off patch scripts, the binaries) remain
+in `D:\FOSS\DsHidMini-motion-rnd\` and are not required to continue.
 
 - `pcap/Extract-HidControl.ps1` - `tshark`-based extractor that reassembles
   every HID class control transfer (setup + data stage) from the USB
