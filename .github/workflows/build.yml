@@ -37,7 +37,8 @@ env:
 jobs:
   build:
     name: 'Platform: ${{ matrix.platform }}'
-    runs-on: windows-2022
+    # VS 2026 / MSBuild 18 is required by .NET SDK 10.0.2xx+ (windows-2022 is MSBuild 17.14).
+    runs-on: windows-2025-vs2026
     permissions:
       contents: read
     env:
