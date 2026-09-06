@@ -654,6 +654,8 @@ public partial class DeviceViewModel : ObservableObject, IDisposable
                           ➤ The BthPS3 driver is required to be installed and operating for Windows to allow paired controllers to connect.
 
                           ➤ If in "To this PC" mode, the PC's bluetooth adapter must be enabled and turned ON for pairing to succeed.
+
+                          ➤ Retro Fighters Defender Bluetooth Edition owners: plug the controller in via USB, then use the "Switch to PS3 mode" button on the Devices page (shown when it's detected in DualShock 4 mode) before pairing.
                           """,
                 PrimaryButtonText = "I need more help!",
                 CloseButtonText = "Close"

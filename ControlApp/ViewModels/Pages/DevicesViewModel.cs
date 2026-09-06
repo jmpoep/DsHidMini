@@ -49,6 +49,7 @@ public partial class DevicesViewModel : ObservableObject, INavigationAware
         IContentDialogService contentDialogService,
         AddressValidator addressValidator,
         BthPS3StatusService bthPs3,
+        DefenderBtStatusService defenderBt,
         INavigationService navigationService
     )
     {
@@ -60,11 +61,14 @@ public partial class DevicesViewModel : ObservableObject, INavigationAware
         _contentDialogService = contentDialogService;
         _addressValidator = addressValidator;
         BthPs3 = bthPs3;
+        DefenderBt = defenderBt;
         _navigationService = navigationService;
         RefreshDevicesList();
     }
 
     public BthPS3StatusService BthPs3 { get; }
+
+    public DefenderBtStatusService DefenderBt { get; }
 
 
     /// <summary>
@@ -108,6 +112,19 @@ public partial class DevicesViewModel : ObservableObject, INavigationAware
     private void GoToBthPs3Settings()
     {
         _navigationService.Navigate(typeof(SettingsPage));
+    }
+
+    [RelayCommand]
+    private void SwitchDefenderBtToPs3Mode()
+    {
+        if (DefenderBt.TrySwitchToPs3Mode())
+        {
+            _appSnackbarMessagesService.ShowDefenderBtSwitchedToPs3ModeMessage();
+        }
+        else
+        {
+            _appSnackbarMessagesService.ShowDefenderBtSwitchToPs3ModeFailedMessage();
+        }
     }
 
     private void OnDshmConfigUpdated(object? obj, EventArgs? eventArgs)

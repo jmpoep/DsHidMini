@@ -37,6 +37,23 @@
                 Command="{Binding ViewModel.GoToBthPs3SettingsCommand}"
                 Content="Details" />
         </StackPanel>
+        <StackPanel
+            Margin="0,0,0,8"
+            DockPanel.Dock="Top"
+            Visibility="{Binding ViewModel.DefenderBt.IsDetected, Converter={StaticResource BoolToVis_TV_FC}}">
+            <ui:InfoBar
+                Title="{Binding ViewModel.DefenderBt.StatusTitle}"
+                IsClosable="False"
+                IsOpen="True"
+                Message="{Binding ViewModel.DefenderBt.StatusMessage}"
+                Severity="{Binding ViewModel.DefenderBt.Severity}" />
+            <ui:Button
+                Margin="0,4,0,0"
+                HorizontalAlignment="Left"
+                Command="{Binding ViewModel.SwitchDefenderBtToPs3ModeCommand}"
+                Content="Switch to PS3 mode"
+                IsEnabled="{Binding ViewModel.DefenderBt.CanSwitch}" />
+        </StackPanel>
         <Grid VerticalAlignment="Stretch">
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="250" />

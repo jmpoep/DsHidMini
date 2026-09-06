@@ -88,10 +88,61 @@ re-derive them from the pcaps.
   pipe at all. This is the primary real-world case
   `DsUsb_PrepareHardware`'s pipe validation now tolerates (falls back to
   `DsUsbOutputReportTransportControlEndpoint`, see `driver/DsUsb.c` and
-  `driver/DsCommon.h`).
-- **Retro Fighters Defender (BT variant)**, when plugged into a PS3 over
-  USB, answers both `0xF2` and `0xF5` correctly, never STALLs `SET_IDLE`,
-  and starts streaming input reports before the console ever sends `0xF4`.
+  `driver/DsCommon.h`). `054C:0CDA` is not a DualShock 3 identity at all -
+  it is the **PlayStation Classic controller** identity (49-byte report
+  descriptor, one IN endpoint, digital buttons only). It already works on
+  Windows as a plain HID gamepad without DsHidMini, and binding DsHidMini
+  to it would misparse PS-Classic input reports as DS3 reports, so it is
+  intentionally **not** added to `dshidmini.inf`. The dongle's other two
+  modes, XInput (`045E:028E`) and generic ShanWan DirectInput
+  (`2563:0575`, 137-byte descriptor with the `0x2621` PS3 "magic" feature),
+  also already work without DsHidMini. Whether the OG dongle can ever
+  present a `054C:0268` DS3 identity on a real PS3 (like the BT variant
+  below) is unconfirmed and would need a hardware capture to settle.
+- **Retro Fighters Defender (Bluetooth Edition)** starts a PS3 USB session
+  enumerated as a **DualShock 4** (`054C:05C4`, `bcdDevice 0x0221`,
+  467-byte report descriptor - a genuine DS4 is `bcdDevice 0x0100` with a
+  483-byte descriptor, so the two are distinguishable without touching the
+  controller). In that identity it answers both `0xF2` and `0xF5`
+  correctly, never STALLs `SET_IDLE`, and starts streaming input reports
+  before the console ever sends `0xF4`. The actual host-detection trick,
+  confirmed from a real PS3 capture
+  (`2024-05-14_PS3-plugin-and-rumble.pcap`,
+  [CircumSpector/Research](https://github.com/CircumSpector/Research)), is
+  a DS4 HID feature report:
+  1. PS3 does `SET_PROTOCOL`, `SET_IDLE`, reads one interrupt IN report
+     from the DS4 identity, then sends
+     **`SET_REPORT Feature 0x14`, 17 bytes:
+     `14 02 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00`.**
+  2. The device stops answering interrupt IN, drops off the bus, and
+     roughly 1 second later re-enumerates as a **DualShock 3**
+     (`054C:0268`, `bcdUSB 1.10`, `bcdDevice 0x0100`, 148-byte descriptor,
+     interrupt EP1 IN + EP2 OUT).
+  3. In DS3 mode it answers `GET 0xF5` with its stored host MAC and
+     otherwise follows the normal DS3 startup sequence documented above
+     (`0xF4`, EP0 output report, interrupt OUT at ~16 ms).
+
+  `2024-05-14_DS4Rev1-on-PS3.pcap` confirms the PS3 sends the exact same
+  `0x14` report to a **genuine** DS4 every ~1 second for the whole
+  session - the DS4 simply ignores it - so replaying this report from a
+  Windows-side tool is harmless to real DS4 controllers.
+  `2024-05-04_Windows-PC-plugin-capture.pcapng` confirms Windows itself
+  never sends `Feature 0x14`, which is the only reason the Defender BT
+  never leaves DS4 mode when plugged into a PC; cycling the controller to
+  DS4 mode (hold Home ~3 s, per the manual) and then replaying the same
+  `0x14` report via `HidD_SetFeature` from user mode is enough to make it
+  re-enumerate as `USB\VID_054C&PID_0268`, which DsHidMini already binds
+  to via the existing `dshidmini.inf` entry. ControlApp's
+  `DefenderBtModeSwitcher` (see issue #282) automates exactly this replay
+  so Bluetooth pairing becomes reachable on Windows without resorting to a
+  PS3-first-pairing + MAC-spoofing workaround.
+
+  The relevant `tshark` filters used against the captures above (run
+  locally; see the `analyze_pcap` limitation note below):
+  ```
+  tshark -r 2024-05-14_PS3-plugin-and-rumble.pcap -Y "usb.device_address == <addr> && usb.control_transfer" -T fields -e frame.number -e usb.device_address -e usb.setup.bRequest -e usb.setup.wValue -e usb.capdata
+  tshark -r 2024-05-14_PS3-plugin-and-rumble.pcap -Y "usb.src == 'host' && usbll.data && usbll.pid == 0x2d" -T fields -e frame.number -e usbll.data
+  ```
 - **Linux `hid-sony`** and **SDL** both treat a failed `0xF2` as fatal to
   Bluetooth-address discovery (but not to basic HID functionality), never
   send `Feature 0xF4` over USB at all, force *all* USB output through EP0
