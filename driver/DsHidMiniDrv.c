@@ -360,6 +360,50 @@ DMF_DsHidMini_Open(
 	// 
 	ConfigLoadForDevice(pDevCtx, FALSE);
 
+	//
+	// UsbOutputReportTransport can override the transport DsUsb_PrepareHardware
+	// picked from pipe availability alone (Auto). Configuration was not yet
+	// loaded when PrepareHardware ran, so this is the earliest point the
+	// override can be applied. See issue #321.
+	// 
+	if (pDevCtx->ConnectionType == DsDeviceConnectionTypeUsb)
+	{
+		switch (pDevCtx->Configuration.UsbOutputReportTransport)
+		{
+		case DsUsbOutputReportTransportInterruptOut:
+
+			if (pDevCtx->Connection.Usb.InterruptOutPipe)
+			{
+				pDevCtx->Connection.Usb.OutputTransport = DsUsbOutputReportTransportInterruptOut;
+			}
+			else
+			{
+				TraceWarning(
+					TRACE_DSHIDMINIDRV,
+					"UsbOutputReportTransport is configured to InterruptOut but this device has no such pipe; staying on ControlEndpoint"
+				);
+			}
+
+			break;
+
+		case DsUsbOutputReportTransportControlEndpoint:
+
+			pDevCtx->Connection.Usb.OutputTransport = DsUsbOutputReportTransportControlEndpoint;
+
+			break;
+
+		default:
+
+			//
+			// Auto: keep whatever DsUsb_PrepareHardware resolved from pipe
+			// availability.
+			// 
+			break;
+		}
+
+		EventWriteUsbOutputTransportSelected(pDevCtx->DeviceAddressString, pDevCtx->Connection.Usb.OutputTransport);
+	}
+
 	pHidCfg->VendorId = pDevCtx->VendorId;
 	pHidCfg->ProductId = pDevCtx->ProductId;
 	pHidCfg->VersionNumber = pDevCtx->VersionNumber;
@@ -450,8 +494,7 @@ DMF_DsHidMini_Open(
 	//
 	if (pDevCtx->ConnectionType == DsDeviceConnectionTypeUsb && pDevCtx->Configuration.DevicePairingMode != DsDevicePairingModeDisabled)
 	{
-		DsUsb_Ds3PairToNewHost(device);
-		DsUsb_Ds3RequestHostAddress(device);
+		DsUsb_Ds3PairAndVerify(device, NULL);
 	}
 
 	//

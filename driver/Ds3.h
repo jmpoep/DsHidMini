@@ -186,7 +186,7 @@ NTSTATUS DsUsb_Ds3Init(PDEVICE_CONTEXT Context);
 
 NTSTATUS DsUsb_Ds3Shutdown(PDEVICE_CONTEXT Context);
 
-NTSTATUS DsUsb_Ds3IndicatorsOff(PDEVICE_CONTEXT Context);
+NTSTATUS DsUsb_Ds3SendOutputReportControl(PDEVICE_CONTEXT Context, PUCHAR Buffer, ULONG BufferLength);
 
 NTSTATUS DsUsb_Ds3SendPairingRequest(WDFDEVICE Device, BD_ADDR NewHostAddress);
 
@@ -194,6 +194,10 @@ NTSTATUS DS3_GetActiveRadioAddress(BD_ADDR* Address);
 
 NTSTATUS DsUsb_Ds3PairToNewHost(WDFDEVICE Device);
 
+NTSTATUS DsUsb_Ds3PairAndVerify(_In_ WDFDEVICE Device, _Out_opt_ PNTSTATUS ReadStatus);
+
 NTSTATUS DsBth_Ds3SixaxisInit(PDEVICE_CONTEXT Context);
 
 NTSTATUS DsUsb_Ds3RequestHostAddress(WDFDEVICE Device);
+
+NTSTATUS DsUsb_Ds3RequestDeviceAddress(WDFDEVICE Device);

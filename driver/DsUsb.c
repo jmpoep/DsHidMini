@@ -254,9 +254,7 @@ NTSTATUS DsUsb_PrepareHardware(WDFDEVICE Device)
 	const PDEVICE_CONTEXT pDevCtx = DeviceGetContext(Device);
 	WDF_USB_DEVICE_SELECT_CONFIG_PARAMS configParams;
 	WDF_USB_PIPE_INFORMATION pipeInfo;
-	UCHAR controlTransferBuffer[CONTROL_TRANSFER_BUFFER_LENGTH];
 	WDF_DEVICE_PROPERTY_DATA propertyData;
-	WCHAR deviceAddress[13];
 	WCHAR friendlyName[128];
 	size_t friendlyNameSize = 0;
 	UCHAR identification[64];
@@ -416,10 +414,16 @@ NTSTATUS DsUsb_PrepareHardware(WDFDEVICE Device)
 		}
 
 		//
-		// Validate that we got both required pipes
+		// Interrupt IN is required to receive input reports at all.
+		// Interrupt OUT is optional (see issue #321): some aftermarket pads
+		// (e.g. the Retro Fighters Defender in its original USB mode) only
+		// implement the pipe the console actually reads from and never
+		// expose a writable one. Default the output transport purely from
+		// pipe availability here; DMF_DsHidMini_Open may override it once
+		// configuration has been loaded (UsbOutputReportTransport), see
+		// Configuration.c.
 		// 
-		if (!pDevCtx->Connection.Usb.InterruptInPipe
-			|| !pDevCtx->Connection.Usb.InterruptOutPipe)
+		if (!pDevCtx->Connection.Usb.InterruptInPipe)
 		{
 			status = STATUS_INVALID_DEVICE_STATE;
 			TraceError(
@@ -429,6 +433,20 @@ NTSTATUS DsUsb_PrepareHardware(WDFDEVICE Device)
 			);
 			EventWriteFailedWithNTStatus(__FUNCTION__, L"Pipe enumeration", status);
 			break;
+		}
+
+		if (!pDevCtx->Connection.Usb.InterruptOutPipe)
+		{
+			TraceWarning(
+				TRACE_DSUSB,
+				"Device has no interrupt OUT pipe; output reports (LEDs/rumble) will be sent over the control endpoint instead"
+			);
+
+			pDevCtx->Connection.Usb.OutputTransport = DsUsbOutputReportTransportControlEndpoint;
+		}
+		else
+		{
+			pDevCtx->Connection.Usb.OutputTransport = DsUsbOutputReportTransportInterruptOut;
 		}
 
 #pragma endregion
@@ -444,118 +462,12 @@ NTSTATUS DsUsb_PrepareHardware(WDFDEVICE Device)
 			break;
 		}
 
-#pragma region Request device MAC address
-
-		//
-		// Request device MAC address
-		// TODO: move somewhere else and continue startup on soft-fail
-		// 
-		if (!NT_SUCCESS(status = USB_SendControlRequest(
-			pDevCtx,
-			BmRequestDeviceToHost,
-			BmRequestClass,
-			GetReport,
-			Ds3FeatureDeviceAddress,
-			0,
-			controlTransferBuffer,
-			CONTROL_TRANSFER_BUFFER_LENGTH
-		)))
-		{
-			TraceError(
-				TRACE_DSUSB,
-				"Requesting device address failed with %!STATUS!",
-				status
-			);
-			EventWriteFailedWithNTStatus(__FUNCTION__, L"Requesting device address", status);
-			break;
-		}
-
-		RtlCopyMemory(
-			&pDevCtx->DeviceAddress,
-			&controlTransferBuffer[4],
-			sizeof(BD_ADDR));
-
-		TraceEvents(TRACE_LEVEL_INFORMATION,
-			TRACE_DSUSB,
-			"Device address: %02X:%02X:%02X:%02X:%02X:%02X",
-			pDevCtx->DeviceAddress.Address[0],
-			pDevCtx->DeviceAddress.Address[1],
-			pDevCtx->DeviceAddress.Address[2],
-			pDevCtx->DeviceAddress.Address[3],
-			pDevCtx->DeviceAddress.Address[4],
-			pDevCtx->DeviceAddress.Address[5]
-		);
-
-		DsDevice_FormatCanonicalAddress(
-			pDevCtx,
-			deviceAddress,
-			ARRAYSIZE(deviceAddress)
-		);
-
-		sprintf_s(
-			pDevCtx->DeviceAddressString,
-			ARRAYSIZE(pDevCtx->DeviceAddressString),
-			"%02X%02X%02X%02X%02X%02X",
-			pDevCtx->DeviceAddress.Address[0],
-			pDevCtx->DeviceAddress.Address[1],
-			pDevCtx->DeviceAddress.Address[2],
-			pDevCtx->DeviceAddress.Address[3],
-			pDevCtx->DeviceAddress.Address[4],
-			pDevCtx->DeviceAddress.Address[5]
-		);
-
-		//
-		// Set device address property
-		// 
-
-		WDF_DEVICE_PROPERTY_DATA_INIT(&propertyData, &DEVPKEY_Bluetooth_DeviceAddress);
-		propertyData.Flags |= PLUGPLAY_PROPERTY_PERSISTENT;
-		propertyData.Lcid = LOCALE_NEUTRAL;
-
-		if (!NT_SUCCESS(status = WdfDeviceAssignProperty(
-			Device,
-			&propertyData,
-			DEVPROP_TYPE_STRING,
-			ARRAYSIZE(deviceAddress) * sizeof(WCHAR),
-			deviceAddress
-		)))
-		{
-			TraceError(
-				TRACE_DSUSB,
-				"Setting DEVPKEY_Bluetooth_DeviceAddress failed with status %!STATUS!",
-				status
-			);
-		}
-
-#pragma endregion
-
-		//
-		// Ask any existing wireless instance of this MAC to disconnect
-		// (issue #330). Wired presence is discovered via PnP, not a
-		// named event.
-		// 
-		DsDevice_InvokeLocalBthDisconnect(pDevCtx);
-
-#pragma region Request host BTH address
-
-		//
-		// Request host BTH address
-		// 
-		if(!NT_SUCCESS(DsUsb_Ds3RequestHostAddress(Device)))
-		{
-			TraceError(
-				TRACE_DSUSB,
-				"Setting DsUsb_Ds3RequestHostAddress failed with status %!STATUS!",
-				status
-			);
-		}
-
-#pragma endregion
-
 #pragma region Request Model Identification
 
 		//
 		// See https://github.com/nefarius/DsHidMini/issues/50
+		// Moved ahead of MAC discovery to mirror the order the PS3 itself
+		// queries a freshly plugged-in pad (GET Feature 0x01 before 0xF2).
 		// 
 		if (NT_SUCCESS(USB_SendControlRequest(
 			pDevCtx,
@@ -583,17 +495,94 @@ NTSTATUS DsUsb_PrepareHardware(WDFDEVICE Device)
 
 #pragma endregion
 
+#pragma region Request device MAC address
+
 		//
-		// Send initial output report
+		// Request device MAC address. Retried internally; on persistent
+		// failure this synthesizes a deterministic fallback address instead
+		// of failing PrepareHardware (see issue #321).
 		// 
-		if (!NT_SUCCESS(status = USB_WriteInterruptPipeAsync(
-			WdfUsbTargetDeviceGetIoTarget(pDevCtx->Connection.Usb.UsbDevice),
-			pDevCtx->Connection.Usb.InterruptOutPipe,
-			(PVOID)G_Ds3UsbHidOutputReport,
-			DS3_USB_HID_OUTPUT_REPORT_SIZE
-		)))
+		DsUsb_Ds3RequestDeviceAddress(Device);
+
+#pragma endregion
+
+		if (pDevCtx->SupportsBluetoothAddressReports)
 		{
-			EventWriteFailedWithNTStatus(__FUNCTION__, L"Sending initial output report", status);
+			//
+			// Ask any existing wireless instance of this MAC to disconnect
+			// (issue #330). Wired presence is discovered via PnP, not a
+			// named event.
+			// 
+			DsDevice_InvokeLocalBthDisconnect(pDevCtx);
+
+#pragma region Request host BTH address
+
+			//
+			// Request host BTH address
+			// 
+			if (!NT_SUCCESS(DsUsb_Ds3RequestHostAddress(Device)))
+			{
+				TraceError(
+					TRACE_DSUSB,
+					"Setting DsUsb_Ds3RequestHostAddress failed with status %!STATUS!",
+					status
+				);
+			}
+
+#pragma endregion
+		}
+		else
+		{
+			//
+			// This device never reported its own Bluetooth MAC, so asking
+			// it (or any paired host radio) about pairing state is
+			// meaningless. Keep the host address zeroed and record why via
+			// the same property a genuine failure would have used, so
+			// ControlApp can show a clear "not supported" reason instead of
+			// a bogus 00:00:00:00:00:00 read failure.
+			// 
+			const BD_ADDR zeroHostAddress = { 0 };
+			NTSTATUS notSupportedStatus = STATUS_NOT_SUPPORTED;
+
+			RtlCopyMemory(&pDevCtx->HostAddress, &zeroHostAddress, sizeof(BD_ADDR));
+
+			WDF_DEVICE_PROPERTY_DATA_INIT(&propertyData, &DEVPKEY_DsHidMini_RO_LastHostRequestStatus);
+			propertyData.Flags |= PLUGPLAY_PROPERTY_PERSISTENT;
+			propertyData.Lcid = LOCALE_NEUTRAL;
+
+			(void)WdfDeviceAssignProperty(
+				Device,
+				&propertyData,
+				DEVPROP_TYPE_NTSTATUS,
+				sizeof(NTSTATUS),
+				&notSupportedStatus
+			);
+		}
+
+		//
+		// Send initial output report. The PS3 itself sends an all-zero,
+		// 48-byte report over the control endpoint before it ever enables
+		// streaming (Feature 0xF4) - mirrored here (instead of the historical
+		// interrupt-OUT write) so devices without an OUT pipe get exactly the
+		// same treatment a genuine pad already receives from a real console
+		// (see issue #321 and docs/PS3_USB_STARTUP.md).
+		// 
+		{
+			UCHAR zeroOutputReport[48] = { 0 };
+
+			if (!NT_SUCCESS(status = DsUsb_Ds3SendOutputReportControl(
+				pDevCtx,
+				zeroOutputReport,
+				ARRAYSIZE(zeroOutputReport)
+			)))
+			{
+				EventWriteFailedWithNTStatus(__FUNCTION__, L"Sending initial output report", status);
+			}
+
+			//
+			// Soft-fail: must never abort PrepareHardware over this.
+			// 
+			status = STATUS_SUCCESS;
 		}
 
 	} while (FALSE);
@@ -684,6 +673,31 @@ NTSTATUS DsUsb_D0Entry(WDFDEVICE Device, WDF_POWER_DEVICE_STATE PreviousState)
 			);
 			EventWriteFailedWithNTStatus(__FUNCTION__, L"DsUsb_Ds3Init", status);
 			break;
+		}
+
+		//
+		// The PS3 sends the current LED state over the control endpoint
+		// (twice) right after enabling streaming (Feature 0xF4), before any
+		// interrupt OUT traffic occurs. Mirror that single report here so a
+		// device without a usable interrupt OUT pipe still gets an initial
+		// LED state; genuine controllers accept this unconditionally too
+		// (see issue #321 and docs/PS3_USB_STARTUP.md). Soft-fail only.
+		// 
+		{
+			PUCHAR outputReportBuffer = NULL;
+			SIZE_T outputReportBufferLength = 0;
+
+			DS3_GET_UNIFIED_OUTPUT_REPORT_BUFFER(
+				pDevCtx,
+				&outputReportBuffer,
+				&outputReportBufferLength
+			);
+
+			(void)DsUsb_Ds3SendOutputReportControl(
+				pDevCtx,
+				outputReportBuffer,
+				(ULONG)outputReportBufferLength
+			);
 		}
 
 		//

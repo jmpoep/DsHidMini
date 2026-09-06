@@ -54,6 +54,10 @@
 						<data inType="win:AnsiString" name="Address" outType="win:Utf8"/>
 						<data inType="win:UInt32" name="Status" outType="win:NTSTATUS"/>
 					</template>
+					<template tid="tid_device_address_uint">
+						<data inType="win:AnsiString" name="Address" outType="win:Utf8"/>
+						<data inType="win:UInt32" name="Value" outType="xs:unsignedInt"/>
+					</template>
 				</templates>
 				<events>
 					<event value="1"  channel="SYSTEM" level="win:Informational" message="$(string.StartEvent.EventMessage)" opcode="win:Start" symbol="StartEvent" template="tid_load_template"/>
@@ -77,6 +81,8 @@
 					<event value="19" channel="SYSTEM" level="win:Informational" message="$(string.WirelessDisconnectEventNotFound.EventMessage)" opcode="win:Info" symbol="WirelessDisconnectEventNotFound" template="tid_device_address"/>
 					<event value="20" channel="SYSTEM" level="win:Informational" message="$(string.WirelessDisconnectIoctlCompleted.EventMessage)" opcode="win:Info" symbol="WirelessDisconnectIoctlCompleted" template="tid_device_address_status"/>
 					<event value="21" channel="SYSTEM" level="win:Informational" message="$(string.YieldingToWiredInstance.EventMessage)" opcode="win:Info" symbol="YieldingToWiredInstance" template="tid_device_address"/>
+					<event value="22" channel="SYSTEM" level="win:Warning" message="$(string.DeviceAddressUnavailableUsingFallback.EventMessage)" opcode="win:Info" symbol="DeviceAddressUnavailableUsingFallback" template="tid_device_address_status"/>
+					<event value="23" channel="SYSTEM" level="win:Informational" message="$(string.UsbOutputTransportSelected.EventMessage)" opcode="win:Info" symbol="UsbOutputTransportSelected" template="tid_device_address_uint"/>
 				</events>
 			</provider>
 		</events>
@@ -105,6 +111,8 @@
 				<string id="WirelessDisconnectEventNotFound.EventMessage" value="No wireless instance found to disconnect for device %1"/>
 				<string id="WirelessDisconnectIoctlCompleted.EventMessage" value="IOCTL_BTH_DISCONNECT_DEVICE for device %1 completed with status %2"/>
 				<string id="YieldingToWiredInstance.EventMessage" value="Wireless instance yielding to existing wired connection for device %1"/>
+				<string id="DeviceAddressUnavailableUsingFallback.EventMessage" value="Device %1 did not report its own Bluetooth address (status %2); using a synthesized fallback address instead. Bluetooth pairing is unavailable for this device."/>
+				<string id="UsbOutputTransportSelected.EventMessage" value="Device %1 will use output report transport %2 (0 = Auto, 1 = InterruptOut, 2 = ControlEndpoint)"/>
 			</stringTable>
 		</resources>
 	</localization>

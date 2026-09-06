@@ -41,6 +41,15 @@ public static class DsHidMiniDriver
         Guid.Parse("{3FECF510-CC94-4FBE-8839-738201F84D59}"), 6,
         typeof(uint));
 
+    /// <summary>
+    ///     <see langword="true"/> if <see cref="DeviceAddressProperty"/> was not reported by the hardware (device
+    ///     did not answer <c>GET Feature 0xF2</c>) and was synthesized by the driver instead. Bluetooth pairing is
+    ///     unavailable for such a device. See issue #321.
+    /// </summary>
+    public static DevicePropertyKey DeviceAddressSynthesizedProperty => CustomDeviceProperty.CreateCustomDeviceProperty(
+        Guid.Parse("{3FECF510-CC94-4FBE-8839-738201F84D59}"), 7,
+        typeof(bool));
+
     #endregion
 
     #region Common device properties

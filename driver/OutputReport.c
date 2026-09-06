@@ -184,10 +184,28 @@ DSHM_EvtExecuteOutputPacketReceived(
 
 	case DsDeviceConnectionTypeUsb:
 
-		status = USB_WriteInterruptOutSync(
-			pDevCtx,
-			&memoryDesc
-		);
+		//
+		// Devices without a usable interrupt OUT pipe (or explicitly
+		// configured to do so, see UsbOutputReportTransport) get their
+		// output reports over the control endpoint instead - the same
+		// mechanism the PS3 itself falls back to for its very first report
+		// (see issue #321).
+		// 
+		if (pDevCtx->Connection.Usb.OutputTransport == DsUsbOutputReportTransportControlEndpoint)
+		{
+			status = DsUsb_Ds3SendOutputReportControl(
+				pDevCtx,
+				ClientWorkBuffer + 1,
+				(ULONG)(bufferSize - 1)
+			);
+		}
+		else
+		{
+			status = USB_WriteInterruptOutSync(
+				pDevCtx,
+				&memoryDesc
+			);
+		}
 
 		if (NT_SUCCESS(status))
 		{

@@ -37,9 +37,9 @@ DSHM_EvtDispatchDeviceMessage(
 
 		const WDFDEVICE device = WdfObjectContextGetObject(DeviceContext);
 
-		NTSTATUS writeStatus = DsUsb_Ds3PairToNewHost(device);
 		NTSTATUS readStatus = STATUS_UNSUCCESSFUL;
-		if (!NT_SUCCESS(readStatus = DsUsb_Ds3RequestHostAddress(device)))
+		const NTSTATUS writeStatus = DsUsb_Ds3PairAndVerify(device, &readStatus);
+		if (!NT_SUCCESS(readStatus))
 		{
 			TraceError(
 				TRACE_IPC,
