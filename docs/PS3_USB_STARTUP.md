@@ -1,9 +1,10 @@
 # PS3 DualShock 3 USB startup sequence
 
 Findings from six real-world PS3-console-to-DS3 USB link-layer captures
-(`D:\FOSS\GameControllerResearch\Sony DualShock 3`: CECHZC2E-A1, CECHZC2U-A2
-and SIXAXIS consoles), analysed with a local `tshark` (the Wireshark MCP
-`analyze_pcap` tool cannot dissect USB pcaps - see the recipe at the bottom).
+([CircumSpector/Research, "Sony DualShock 3"](https://github.com/CircumSpector/Research/tree/master/Sony%20DualShock%203):
+CECHZC2E-A1, CECHZC2U-A2 and SIXAXIS consoles), analysed with a local
+`tshark` (the Wireshark MCP `analyze_pcap` tool cannot dissect USB pcaps -
+see the recipe at the bottom).
 This informed the soft-fail MAC discovery and USB startup rework for
 [issue #321](https://github.com/nefarius/DsHidMini/issues/321); nothing here
 changes behaviour for a genuine, fully-compliant controller.
