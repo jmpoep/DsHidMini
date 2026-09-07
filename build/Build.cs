@@ -342,8 +342,8 @@ class Build : NukeBuild
             string artifactsDir = ResolvedArtifactsPath;
             string[] patterns =
             [
-                Path.Combine(artifactsDir, "drivers", "dshidmini_ARM64", "*.dll"),
-                Path.Combine(artifactsDir, "drivers", "dshidmini_x64", "*.dll")
+                Path.Combine(artifactsDir, "drivers", "ARM64", "*.dll"),
+                Path.Combine(artifactsDir, "drivers", "x64", "*.dll")
             ];
             List<string> files = new();
             foreach (string pattern in patterns)

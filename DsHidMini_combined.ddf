@@ -8,17 +8,13 @@
 .Set CompressionType=MSZIP
 .Set Cabinet=on
 .Set Compress=on
-.Set UniqueFiles=OFF
 .Set CabinetNameTemplate=dshidmini.cab
-; x64
-.Set DestinationDir=dshidmini_x64
-LICENSE
+; Single dual-arch package. CAB root must stay empty.
+.Set DestinationDir=dshidmini
+bin\partner\dshidmini.inf
+.Set DestinationDir=dshidmini\x64
 bin\x64\dshidmini.pdb
-bin\x64\dshidmini\dshidmini.inf
 bin\x64\dshidmini\dshidmini.dll
-; ARM64
-.Set DestinationDir=dshidmini_ARM64
-LICENSE
+.Set DestinationDir=dshidmini\ARM64
 bin\ARM64\dshidmini.pdb
-bin\ARM64\dshidmini\dshidmini.inf
 bin\ARM64\dshidmini\dshidmini.dll

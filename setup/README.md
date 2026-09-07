@@ -1,4 +1,4 @@
-﻿# DsHidMini setup
+# DsHidMini setup
 
 This project generates an MSI package containing x64 and ARM64 driver editions using [WixSharp](https://github.com/oleg-shilo/wixsharp).
 
@@ -13,8 +13,18 @@ Commands/scripts are to be run from solution root directory.
   nuke download-ci-artifacts -buildversion "<workflow-run-id>"
   ```  
   to download the tagged release (the run ID is the numeric ID in the workflow run URL)
-- Submit the `*.cab` files to MS Partner Portal for signing
-- Place the signed files in `.\artifacts\drivers` directory
+- Submit the partner CAB (`dshidmini-partner-submission` artifact) to MS Partner Portal for signing. Tick both x64 and ARM64; the CAB is one dual-arch package
+- Extract the signed package. Copy the contents of the `dshidmini` folder (not the folder itself) into `.\artifacts\drivers` so the layout is:
+
+  ```text
+  artifacts/drivers/
+    dshidmini.inf
+    dshidmini.cat
+    x64/dshidmini.dll
+    ARM64/dshidmini.dll
+  ```
+
+  The catalog is bound to the dual-arch INF. Do not split it back into per-arch INFs.
 - Run  
   ```PowerShell
   nuke sign-production-binaries
