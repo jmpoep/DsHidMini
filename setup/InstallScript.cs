@@ -48,7 +48,7 @@ internal class InstallScript
     {
         // grab main app version
         Version version = Version.Parse(BuildVariables.SetupVersion);
-        const string driverPath = @"..\artifacts\drivers\dshidmini_x64\dshidmini.dll";
+        const string driverPath = @"..\artifacts\drivers\x64\dshidmini.dll";
         Version driverVersion = Version.Parse(FileVersionInfo.GetVersionInfo(driverPath).FileVersion);
 
         const string filterPath = @"..\artifacts\igfilter\nssmkig_x64\nssmkig.sys";
@@ -299,12 +299,10 @@ public static class CustomActions
         string nefconcPath = Path.Combine(nefconDir, archShortName, "nefconc.exe");
         session.Log($"nefconcPath = {nefconcPath}");
 
-        string dshidminiDriverDir = Path.Combine(driversDir, $"dshidmini_{archShortName}");
-        session.Log($"dshidminiDriverDir = {dshidminiDriverDir}");
         string igfilterDriverDir = Path.Combine(driversDir, $"nssmkig_{archShortName}");
         session.Log($"igfilterDriverDir = {igfilterDriverDir}");
 
-        string dshidminiInfPath = Path.Combine(dshidminiDriverDir, "dshidmini.inf");
+        string dshidminiInfPath = Path.Combine(driversDir, "dshidmini.inf");
         session.Log($"dshidminiInfPath = {dshidminiInfPath}");
         string igfilterInfPath = Path.Combine(igfilterDriverDir, "igfilter.inf");
         session.Log($"igfilterInfPath = {igfilterInfPath}");

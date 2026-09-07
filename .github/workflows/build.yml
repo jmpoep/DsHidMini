@@ -541,6 +541,8 @@ jobs:
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
+          New-Item -ItemType Directory -Force -Path bin\partner | Out-Null
+          & .\build\New-PartnerSubmissionInf.ps1 -InputInf bin\x64\dshidmini\dshidmini.inf -OutputInf bin\partner\dshidmini.inf
           & makecab.exe /f .\DsHidMini_combined.ddf
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
           $cabName = "dshidmini_$env:BUILD_VERSION.cab"
