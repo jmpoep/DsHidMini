@@ -74,7 +74,8 @@ NTSTATUS DsUsb_Ds3RequestHostAddress(WDFDEVICE Device)
 		Ds3FeatureHostAddress,
 		0,
 		controlTransferBuffer,
-		CONTROL_TRANSFER_BUFFER_LENGTH
+		CONTROL_TRANSFER_BUFFER_LENGTH,
+		NULL
 	)))
 	{
 		/*
@@ -186,7 +187,8 @@ NTSTATUS DsUsb_Ds3Init(PDEVICE_CONTEXT Context)
 		Ds3FeatureDeviceState,
 		0,
 		hidCommandEnable,
-		ARRAYSIZE(hidCommandEnable)
+		ARRAYSIZE(hidCommandEnable),
+		NULL
 	);
 
 	FuncExit(TRACE_DS3, "status=%!STATUS!", status);
@@ -213,7 +215,8 @@ NTSTATUS DsUsb_Ds3Shutdown(PDEVICE_CONTEXT Context)
 		Ds3FeatureDeviceState,
 		0,
 		hidCommandEnable,
-		ARRAYSIZE(hidCommandEnable)
+		ARRAYSIZE(hidCommandEnable),
+		NULL
 	);
 
 	FuncExit(TRACE_DS3, "status=%!STATUS!", status);
@@ -240,7 +243,8 @@ NTSTATUS DsUsb_Ds3SendOutputReportControl(PDEVICE_CONTEXT Context, PUCHAR Buffer
 		Dss3FeatureOutputReport,
 		0,
 		Buffer,
-		BufferLength
+		BufferLength,
+		NULL
 	);
 
 	if (!NT_SUCCESS(status))
@@ -375,7 +379,8 @@ NTSTATUS DsUsb_Ds3RequestDeviceAddress(WDFDEVICE Device)
 			Ds3FeatureDeviceAddress,
 			0,
 			controlTransferBuffer,
-			CONTROL_TRANSFER_BUFFER_LENGTH
+			CONTROL_TRANSFER_BUFFER_LENGTH,
+			NULL
 		)))
 		{
 			break;
@@ -574,7 +579,8 @@ NTSTATUS DsUsb_Ds3SendPairingRequest(WDFDEVICE Device, BD_ADDR NewHostAddress)
 		Ds3FeatureHostAddress,
 		0,
 		controlBuffer,
-		SET_HOST_BD_ADDR_CONTROL_BUFFER_LENGTH
+		SET_HOST_BD_ADDR_CONTROL_BUFFER_LENGTH,
+		NULL
 	)))
 	{
 		TraceError(

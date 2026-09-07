@@ -94,70 +94,136 @@ DsIdentification_Parse(
 	return TRUE;
 }
 
+static VOID
+DsIdentification_AssignProperty(
+	_In_ WDFDEVICE Device,
+	_In_ const DEVPROPKEY* Key,
+	_In_ DEVPROPTYPE Type,
+	_In_ ULONG Size,
+	_In_opt_ PVOID Buffer,
+	_In_ PCWSTR KeyName
+)
+{
+	WDF_DEVICE_PROPERTY_DATA propertyData;
+	NTSTATUS status;
+
+	WDF_DEVICE_PROPERTY_DATA_INIT(&propertyData, Key);
+	propertyData.Flags |= PLUGPLAY_PROPERTY_PERSISTENT;
+	propertyData.Lcid = LOCALE_NEUTRAL;
+
+	status = WdfDeviceAssignProperty(
+		Device,
+		&propertyData,
+		Type,
+		Size,
+		Buffer
+	);
+
+	if (!NT_SUCCESS(status))
+	{
+		TraceError(
+			TRACE_DSUSB,
+			"WdfDeviceAssignProperty(%ls) failed with %!STATUS!",
+			KeyName,
+			status
+		);
+	}
+}
+
+VOID
+DsIdentification_ResetDecodedProperties(
+	_In_ WDFDEVICE Device
+)
+{
+	//
+	// BufferLength 0 deletes a previously persisted value so a failed GET or
+	// parse cannot leave stale decoded keys from an earlier power-up.
+	// 
+	DsIdentification_AssignProperty(
+		Device,
+		&DEVPKEY_DsHidMini_RO_IdentificationFirmware,
+		DEVPROP_TYPE_UINT32,
+		0,
+		NULL,
+		L"DEVPKEY_DsHidMini_RO_IdentificationFirmware"
+	);
+	DsIdentification_AssignProperty(
+		Device,
+		&DEVPKEY_DsHidMini_RO_IdentificationPadType,
+		DEVPROP_TYPE_BYTE,
+		0,
+		NULL,
+		L"DEVPKEY_DsHidMini_RO_IdentificationPadType"
+	);
+	DsIdentification_AssignProperty(
+		Device,
+		&DEVPKEY_DsHidMini_RO_IdentificationMotionPath,
+		DEVPROP_TYPE_BYTE,
+		0,
+		NULL,
+		L"DEVPKEY_DsHidMini_RO_IdentificationMotionPath"
+	);
+	DsIdentification_AssignProperty(
+		Device,
+		&DEVPKEY_DsHidMini_RO_IdentificationCloneHeuristic,
+		DEVPROP_TYPE_BOOLEAN,
+		0,
+		NULL,
+		L"DEVPKEY_DsHidMini_RO_IdentificationCloneHeuristic"
+	);
+}
+
 VOID
 DsIdentification_AssignDeviceProperties(
 	_In_ WDFDEVICE Device,
 	_In_ PDS_IDENTIFICATION_INFO Info
 )
 {
-	WDF_DEVICE_PROPERTY_DATA propertyData;
 	UCHAR padType;
 	UCHAR motionPath;
-	BOOLEAN cloneHeuristic;
+	DEVPROP_BOOLEAN cloneHeuristic;
 
 	if (Info == NULL)
 	{
 		return;
 	}
 
-	WDF_DEVICE_PROPERTY_DATA_INIT(&propertyData, &DEVPKEY_DsHidMini_RO_IdentificationFirmware);
-	propertyData.Flags |= PLUGPLAY_PROPERTY_PERSISTENT;
-	propertyData.Lcid = LOCALE_NEUTRAL;
-
-	(void)WdfDeviceAssignProperty(
+	DsIdentification_AssignProperty(
 		Device,
-		&propertyData,
+		&DEVPKEY_DsHidMini_RO_IdentificationFirmware,
 		DEVPROP_TYPE_UINT32,
 		sizeof(UINT32),
-		&Info->FirmwarePacked
+		&Info->FirmwarePacked,
+		L"DEVPKEY_DsHidMini_RO_IdentificationFirmware"
 	);
 
 	padType = Info->PadType;
-	WDF_DEVICE_PROPERTY_DATA_INIT(&propertyData, &DEVPKEY_DsHidMini_RO_IdentificationPadType);
-	propertyData.Flags |= PLUGPLAY_PROPERTY_PERSISTENT;
-	propertyData.Lcid = LOCALE_NEUTRAL;
-
-	(void)WdfDeviceAssignProperty(
+	DsIdentification_AssignProperty(
 		Device,
-		&propertyData,
+		&DEVPKEY_DsHidMini_RO_IdentificationPadType,
 		DEVPROP_TYPE_BYTE,
 		sizeof(UCHAR),
-		&padType
+		&padType,
+		L"DEVPKEY_DsHidMini_RO_IdentificationPadType"
 	);
 
 	motionPath = (UCHAR)Info->MotionPath;
-	WDF_DEVICE_PROPERTY_DATA_INIT(&propertyData, &DEVPKEY_DsHidMini_RO_IdentificationMotionPath);
-	propertyData.Flags |= PLUGPLAY_PROPERTY_PERSISTENT;
-	propertyData.Lcid = LOCALE_NEUTRAL;
-
-	(void)WdfDeviceAssignProperty(
+	DsIdentification_AssignProperty(
 		Device,
-		&propertyData,
+		&DEVPKEY_DsHidMini_RO_IdentificationMotionPath,
 		DEVPROP_TYPE_BYTE,
 		sizeof(UCHAR),
-		&motionPath
+		&motionPath,
+		L"DEVPKEY_DsHidMini_RO_IdentificationMotionPath"
 	);
 
-	cloneHeuristic = Info->CloneHeuristic;
-	WDF_DEVICE_PROPERTY_DATA_INIT(&propertyData, &DEVPKEY_DsHidMini_RO_IdentificationCloneHeuristic);
-	propertyData.Flags |= PLUGPLAY_PROPERTY_PERSISTENT;
-	propertyData.Lcid = LOCALE_NEUTRAL;
-
-	(void)WdfDeviceAssignProperty(
+	cloneHeuristic = Info->CloneHeuristic ? DEVPROP_TRUE : DEVPROP_FALSE;
+	DsIdentification_AssignProperty(
 		Device,
-		&propertyData,
+		&DEVPKEY_DsHidMini_RO_IdentificationCloneHeuristic,
 		DEVPROP_TYPE_BOOLEAN,
-		sizeof(BOOLEAN),
-		&cloneHeuristic
+		sizeof(DEVPROP_BOOLEAN),
+		&cloneHeuristic,
+		L"DEVPKEY_DsHidMini_RO_IdentificationCloneHeuristic"
 	);
 }

@@ -14,16 +14,22 @@ USB_SendControlRequest(
 	_In_ USHORT Value,
 	_In_ USHORT Index,
 	_Inout_ PVOID Buffer,
-	_In_ ULONG BufferLength
+	_In_ ULONG BufferLength,
+	_Out_opt_ PULONG BytesTransferred
 )
 {
 	NTSTATUS status;
 	WDF_USB_CONTROL_SETUP_PACKET controlSetupPacket;
 	WDF_REQUEST_SEND_OPTIONS sendOptions;
 	WDF_MEMORY_DESCRIPTOR memDesc;
-	ULONG bytesTransferred;
+	ULONG bytesTransferred = 0;
 
 	FuncEntry(TRACE_DSUSB);
+
+	if (BytesTransferred != NULL)
+	{
+		*BytesTransferred = 0;
+	}
 
 	WDF_REQUEST_SEND_OPTIONS_INIT(
 		&sendOptions,
@@ -73,6 +79,11 @@ USB_SendControlRequest(
 			status,
 			bytesTransferred
 		);
+	}
+
+	if (BytesTransferred != NULL)
+	{
+		*BytesTransferred = bytesTransferred;
 	}
 
 	FuncExit(TRACE_DSUSB, "status=%!STATUS!", status);
@@ -469,6 +480,13 @@ NTSTATUS DsUsb_PrepareHardware(WDFDEVICE Device)
 		// Moved ahead of MAC discovery to mirror the order the PS3 itself
 		// queries a freshly plugged-in pad (GET Feature 0x01 before 0xF2).
 		// 
+		ULONG identificationLength = 0;
+
+		RtlZeroMemory(identification, sizeof(identification));
+		pDevCtx->IdentificationPresent = FALSE;
+		RtlZeroMemory(&pDevCtx->Identification, sizeof(pDevCtx->Identification));
+		DsIdentification_ResetDecodedProperties(Device);
+
 		if (NT_SUCCESS(USB_SendControlRequest(
 			pDevCtx,
 			BmRequestDeviceToHost,
@@ -477,9 +495,15 @@ NTSTATUS DsUsb_PrepareHardware(WDFDEVICE Device)
 			0x0301,
 			0,
 			identification,
-			ARRAYSIZE(identification)
+			ARRAYSIZE(identification),
+			&identificationLength
 		)))
 		{
+			if (identificationLength > ARRAYSIZE(identification))
+			{
+				identificationLength = ARRAYSIZE(identification);
+			}
+
 			WDF_DEVICE_PROPERTY_DATA_INIT(&propertyData, &DEVPKEY_DsHidMini_RO_IdentificationData);
 			propertyData.Flags |= PLUGPLAY_PROPERTY_PERSISTENT;
 			propertyData.Lcid = LOCALE_NEUTRAL;
@@ -488,13 +512,13 @@ NTSTATUS DsUsb_PrepareHardware(WDFDEVICE Device)
 				Device,
 				&propertyData,
 				DEVPROP_TYPE_BINARY,
-				ARRAYSIZE(identification),
+				identificationLength,
 				identification
 			);
 
 			if (DsIdentification_Parse(
 				identification,
-				ARRAYSIZE(identification),
+				identificationLength,
 				&pDevCtx->Identification))
 			{
 				pDevCtx->IdentificationPresent = TRUE;

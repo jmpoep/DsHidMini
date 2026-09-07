@@ -466,7 +466,11 @@ public partial class DeviceViewModel : ObservableObject, IDisposable
     public bool IdentificationCloneHeuristic => IdentificationInfo?.CloneHeuristic ?? false;
 
     public string IdentificationCloneHeuristicText =>
-        IdentificationCloneHeuristic ? "Likely counterfeit" : "No match";
+        IdentificationInfo is null
+            ? "Unknown"
+            : IdentificationCloneHeuristic
+                ? "Likely counterfeit"
+                : "No match";
 
     /// <summary>
     ///     The device Instance ID.

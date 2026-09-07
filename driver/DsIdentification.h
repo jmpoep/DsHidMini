@@ -34,6 +34,11 @@ DsIdentification_Parse(
 );
 
 VOID
+DsIdentification_ResetDecodedProperties(
+	_In_ WDFDEVICE Device
+);
+
+VOID
 DsIdentification_AssignDeviceProperties(
 	_In_ WDFDEVICE Device,
 	_In_ PDS_IDENTIFICATION_INFO Info
