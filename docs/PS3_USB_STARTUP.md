@@ -24,7 +24,8 @@ Identical across all three consoles and all six samples:
    has: `SET_REPORT Feature 0xF5` (pairing request), then a verifying
    `GET_REPORT Feature 0xF5` 27-75 ms later (varies by sample).
 6. `0xEF` / `0xF8` calibration-page reads (motion sensor calibration data;
-   not emulated by DsHidMini, see below).
+   not emulated by DsHidMini, see below; page layout and semantics in
+   [`MOTION.md`](MOTION.md#calibration-eeprom-feature-0xef-0xf8-0xf7)).
 7. **`SET_REPORT Output 0x01` on EP0 (control endpoint), 48 bytes, no report
    ID, all zeros.** This is the pre-enable output report and the reason
    DsHidMini now sends an equivalent EP0 report during
@@ -67,10 +68,12 @@ re-derive them from the pcaps.
   (on/off only); the big (left) motor strength byte is a full 0-255 power
   value.
 - Bytes `[6..7]` of the interrupt OUT report (observed as `ff 77`, `ff 7f`,
-  or `00 00` depending on sample) are per-controller values copied
-  verbatim from the `0xEF` calibration page's offset `0xA0` read; one
-  console/pad pairing (B1) reads these back as zero, so DsHidMini sending
-  zeros here is a valid, real-world value, not a gap.
+  or `00 00` depending on sample) are an inserted `0xFF` followed by the
+  EEPROM gyro calibration byte (page `0xA0` offset 14-15), not a verbatim
+  copy of that page. One console/pad pairing (B1) reads these back as zero,
+  so DsHidMini sending zeros here is a valid, real-world value, not a gap.
+  A SIXAXIS gets them at bytes `[4..5]` instead - see
+  [`MOTION.md`](MOTION.md#gyroscope).
 - Unused LED pattern blocks (for player slots that are off) are all-zero.
 
 ## LED timing

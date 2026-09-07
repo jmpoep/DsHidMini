@@ -1,0 +1,156 @@
+# device: instance 6&4b29c3c&0&2, guid b5b0e7e7-3f02-4c29-84f7-7bc562bd3077, path \\?\usb#vid_054c&pid_0268#6&4b29c3c&0&2#{b5b0e7e7-3f02-4c29-84f7-7bc562bd3077} (found after 0.0 s)
+# ds3-cechzc2e-a1  2026-09-06T17:21:32.7217265+02:00
+# descriptor: VID 054C PID 0268 bcdDevice 0100 bcdUSB 0200 strings: iManufacturer 1 'Sony' iProduct 2 'PLAYSTATION(R)3 Controller' iSerial 0
+# interface 0: class 0x03
+#   pipe 0x02 type 3 OUT mps 64 interval 1
+#   pipe 0x81 type 3 IN mps 64 interval 1
+# EP0 sanity GET_DESCRIPTOR(device) ok, 18 bytes: 12 01 00 02 00 00 00 40 4c 05 68 02 00 01 01 02 
+    00 01
+# SET_IDLE rejected (genuine DS3 STALLs this too): ControlOut 0A/0000 len 0: error 31 (A device attached to the system is not functioning.)
+
+## Feature report dumps
+GET Feature 0x01 (identification) len=64
+    00 01 04 00 08 0c 01 02 18 18 18 18 09 0a 10 11 
+    12 13 00 00 00 00 04 00 02 02 02 02 00 00 00 04 
+    04 04 04 00 00 04 00 01 02 07 00 17 00 00 00 00 
+    00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+GET Feature 0xF2 (BT address / firmware) len=64
+    f2 ff ff 00 00 07 04 xx xx xx 00 03 50 81 d8 01
+    8a 13 00 00 00 00 04 00 02 02 02 02 00 00 00 04 
+    04 04 04 00 00 04 00 01 02 07 00 17 00 00 00 00 
+    00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+GET Feature 0xF5 (host address) len=64
+    01 00 8c 7c b5 xx xx xx xx xx 00 03 50 81 d8 01
+    8a 13 00 00 00 00 04 00 02 02 02 02 00 00 00 04 
+    04 04 04 00 00 04 00 01 02 07 00 17 00 00 00 00 
+    00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+GET Feature 0xEF (plain, no page select) len=64
+    00 ef 04 00 08 03 00 10 00 00 00 00 00 00 00 00 
+    00 00 00 01 64 19 01 00 64 00 01 90 00 19 fe 00 
+    00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 
+    05 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+GET Feature 0xF8 (F8 plain) len=64
+    00 01 00 00 08 03 00 10 00 00 00 00 00 00 00 00 
+    00 00 00 01 64 19 01 00 64 00 01 90 00 19 fe 00 
+    00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 
+    05 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+GET Feature 0xF7 (F7 status) len=64
+    01 00 06 02 d0 01 ee ff 10 90 00 00 00 00 00 00 
+    00 00 00 01 64 19 01 00 64 00 01 90 00 19 fe 00 
+    00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 
+    05 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+SET 0xEF page 0x00 -> GET 0xEF len=64
+    00 ef 04 00 08 03 01 00 00 00 00 00 00 00 00 00 
+    00 d2 d3 d4 d5 d6 d7 d8 d9 da db dc dd df e1 e2 
+    e3 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 
+    05 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+SET 0xEF page 0x10 -> GET 0xEF len=64
+    00 ef 04 00 08 03 01 10 00 00 00 00 00 00 00 00 
+    00 e4 e5 e6 e7 e8 e9 ea eb ec ed ee ef f0 f1 f2 
+    f3 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 
+    05 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+SET 0xEF page 0x20 -> GET 0xEF len=64
+    00 ef 04 00 08 03 01 20 00 00 00 00 00 00 00 00 
+    00 f4 f4 f5 f5 f6 f6 f7 f7 f7 f8 f8 f8 f9 f9 f9 
+    fa 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 
+    05 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+SET 0xEF page 0x30 -> GET 0xEF len=64
+    00 ef 04 00 08 03 01 30 00 00 00 00 00 00 00 00 
+    00 fa fa fa fb fb fb fb fb fc fc fc fc fc fd fd 
+    fd 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 
+    05 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+SET 0xEF page 0x40 -> GET 0xEF len=64
+    00 ef 04 00 08 03 01 40 00 00 00 00 00 00 00 00 
+    00 fd fd fd fd fd fd fe fe fe fe fe fe fe fe fe 
+    fe 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 
+    05 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+SET 0xEF page 0x50 -> GET 0xEF len=64
+    00 ef 04 00 08 03 01 50 00 00 00 00 00 00 00 00 
+    00 fe fe fe fe fe fe ff ff ff ff ff ff ff ff ff 
+    ff 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 
+    05 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+SET 0xEF page 0x60 -> GET 0xEF len=64
+    00 ef 04 00 08 03 01 60 00 00 00 00 00 00 00 00 
+    00 ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff 
+    ff 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 
+    05 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+SET 0xEF page 0x70 -> GET 0xEF len=64
+    00 ef 04 00 08 03 01 70 00 00 00 00 00 00 00 00 
+    00 01 dc 6a 64 70 66 03 00 65 64 66 65 6f 64 10 
+    b0 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 
+    05 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+SET 0xEF page 0x80 -> GET 0xEF len=64
+    00 ef 04 00 08 03 01 80 00 00 00 00 00 00 00 00 
+    00 03 ff 00 00 ff 44 44 02 6c 02 62 00 00 00 00 
+    00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 
+    05 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+SET 0xEF page 0x90 -> GET 0xEF len=64
+    00 ef 04 00 08 03 01 90 00 00 00 00 00 00 00 00 
+    00 00 60 03 a0 00 77 03 89 00 62 03 9e 00 61 03 
+    9f 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 
+    05 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+SET 0xEF page 0xA0 -> GET 0xEF len=64
+    00 ef 04 00 08 03 01 a0 00 00 00 00 00 00 00 00 
+    00 01 fc 01 8d 01 f7 01 83 01 ff 01 8c 02 09 00 
+    77 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 
+    05 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+SET 0xEF page 0xB0 -> GET 0xEF len=64
+    00 ef 04 00 08 03 01 b0 00 00 00 00 00 00 00 00 
+    00 02 6c 02 62 00 00 00 00 00 00 00 00 00 00 00 
+    00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 
+    05 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+SET 0xEF page 0xC0 -> GET 0xEF len=64
+    00 ef 04 00 08 03 01 c0 00 00 00 00 00 00 00 00 
+    00 00 00 00 00 03 00 00 00 00 00 00 00 00 00 00 
+    00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 
+    05 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+SET 0xEF page 0xD0 -> GET 0xEF len=64
+    00 ef 04 00 08 03 01 d0 00 00 00 00 00 00 00 00 
+    00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 
+    00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 
+    05 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+SET 0xEF page 0xE0 -> GET 0xEF len=64
+    00 ef 04 00 08 03 01 e0 00 00 00 00 00 00 00 00 
+    00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 
+    00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 
+    05 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+SET 0xEF page 0xF0 -> GET 0xEF len=64
+    00 ef 04 00 08 03 01 f0 00 00 00 00 00 00 00 00 
+    00 20 07 09 03 00 00 22 2f 00 01 00 00 0d b5 a7 
+    10 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 
+    05 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+GET Feature 0xF8 (F8 after 0xEF page 0xA0) len=64
+    00 01 00 00 08 03 01 a0 00 00 00 00 00 00 00 00 
+    00 01 fc 01 8d 01 f7 01 83 01 ff 01 8c 02 09 00 
+    77 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 
+    05 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+
+## Identification: type bytes 8..11 = 18 18 18 18 => DualShock 3-class (0x18); calibration fields (4) = 00 01 02 07; field 0x07 (gyro cal byte in output) = True
+## 0xEF page 0xA0 calibration (BE u16 at 0x11): X 508/397 (1g span 111)  Y 503/387 (116)  Z 511/396 (115)  G 521/119
+
+## Enable streaming: SET Feature 0xF4 42 0C 00 00
+## InitialGyroCal(eepromCal=119, eepromZero=521) -> calByte 0x77, zeroRef 521
+## Output report sent (cal bytes 0xFF 0x77 at [5,6])
+
+## Six orientations (2 s each)
+  flat on table, buttons up (Z = -1g expected): n=200 raw avg X 508.1 Y 488.2 Z 397.0 G 491.1 | cal X 512 Y 498 Z 400
+  upside down, buttons facing table: n=200 raw avg X 510.3 Y 478.9 Z 616.0 G 491.9 | cal X 513 Y 489 Z 615
+  standing on its left grip (L side down): n=200 raw avg X 618.1 Y 517.8 Z 508.9 G 491.3 | cal X 623 Y 526 Z 511
+  standing on its right grip (R side down): n=200 raw avg X 396.0 Y 515.7 Z 501.0 G 492.1 | cal X 399 Y 524 Z 503
+  front edge down (triggers pointing to the table): n=200 raw avg X 506.0 Y 393.0 Z 502.2 G 492.6 | cal X 511 Y 405 Z 504
+  back edge down (USB port up, triggers pointing at the ceiling): n=200 raw avg X 510.3 Y 616.5 Z 496.4 G 491.6 | cal X 513 Y 623 Z 498
+## Yaw rotation sample (printing live)
+  yaw: n=503 rest 491.6 raw min 362 max 637 peak +145 / -130 counts, integral 14.1 counts*s (divide by degrees turned for counts per deg/s)
+
+## Cal-byte experiment: measure raw gyro shift per cal byte step (keep the pad still)
+  calByte 0x77 (0): raw G avg 475.3 (n=150) shift +0.0
+  calByte 0x79 (+2): raw G avg 549.6 (n=150) shift +74.3 => 37.16 counts/step (ds3cal: 26.4)
+  calByte 0x7B (+4): raw G avg 598.0 (n=150) shift +122.7 => 30.68 counts/step (ds3cal: 26.4)
+  calByte 0x77 (0): raw G avg 492.2 (n=150) shift +16.9
+  calByte 0x75 (-2): raw G avg 439.3 (n=150) shift -36.0 => 18.01 counts/step (ds3cal: 26.4)
+  calByte 0x73 (-4): raw G avg 387.0 (n=150) shift -88.3 => 22.07 counts/step (ds3cal: 26.4)
+  calByte 0x77 (0): raw G avg 492.5 (n=150) shift +17.3
+
+## Sent zero output report and SET Feature 0xF4 42 0B 00 00
+# log: D:\FOSS\DsHidMini-motion-rnd\dumps\ds3-cechzc2e-a1_20260906-172132.txt
+# csv: D:\FOSS\DsHidMini-motion-rnd\dumps\ds3-cechzc2e-a1_20260906-172132_stream.csv

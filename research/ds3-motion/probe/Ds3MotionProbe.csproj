@@ -1,0 +1,25 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Standalone research tool; deliberately NOT part of dshidmini.sln or the NUKE build.
+    Build and run from this folder:  dotnet build -c Release ; dotnet run -c Release [args], see ../README.md
+    Requires a DS3/SIXAXIS (054C:0268) bound to WinUSB via Zadig, see ../README.md.
+  -->
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <InvariantGlobalization>true</InvariantGlobalization>
+    <RootNamespace>Ds3MotionProbe</RootNamespace>
+
+    <!-- opt out of the repo-level Directory.Build.props packaging/doc settings -->
+    <IsPackable>false</IsPackable>
+    <GeneratePackageOnBuild>false</GeneratePackageOnBuild>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+    <IncludeSymbols>false</IncludeSymbols>
+  </PropertyGroup>
+
+</Project>

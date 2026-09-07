@@ -30,6 +30,8 @@ R2 = Y Rotation
 
 ## Sensors/Motion/Gyro/Accel
 
+Byte layout, endianness, EEPROM calibration pages (`Feature 0xEF`), the accelerometer formula and the `ds3cal.dll` gyro auto-zero algorithm are documented in [`MOTION.md`](MOTION.md). Reference links:
+
 - https://github.com/RPCS3/rpcs3/blob/master/rpcs3/Input/ds3_pad_handler.cpp#L445
 - https://github.com/RPCS3/rpcs3/blob/master/rpcs3/Input/ds4_pad_handler.cpp#L824
 - https://github.com/nefarius/ScpToolkit/compare/master...rajkosto:master

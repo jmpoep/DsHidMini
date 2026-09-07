@@ -1,0 +1,70 @@
+# interface 1097d1bd-c358-4f7d-99de-f96654063c67 opens but EP0 fails: ControlIn 06/0100 len 18: error 31 (A device attached to the system is not functioning.)
+# skip \\?\usb#vid_054c&pid_0268#6&4b29c3c&0&2#{79ec206c-33b1-42a0-ae9d-5492e380d901}: CreateFile
+# --wait: polling for a pad that answers on EP0 - (re)plug it now ...
+# skip \\?\usb#vid_054c&pid_0268#6&4b29c3c&0&1#{1097d1bd-c358-4f7d-99de-f96654063c67}: CreateFile
+# device: instance 6&4b29c3c&0&1, guid 1097d1bd-c358-4f7d-99de-f96654063c67, path \\?\usb#vid_054c&pid_0268#6&4b29c3c&0&1#{1097d1bd-c358-4f7d-99de-f96654063c67} (found after 69.7 s)
+# sixaxis  2026-09-06T16:41:59.2602356+02:00
+# descriptor: VID 054C PID 0268 bcdDevice 0100 bcdUSB 0200 strings: iManufacturer 1 'Sony' iProduct 2 'PLAYSTATION(R)3 Controller' iSerial 0
+# interface 0: class 0x03
+#   pipe 0x02 type 3 OUT mps 64 interval 1
+#   pipe 0x81 type 3 IN mps 64 interval 1
+# EP0 sanity GET_DESCRIPTOR(device) ok, 18 bytes: 12 01 00 02 00 00 00 40 4c 05 68 02 00 01 01 02 
+    00 01
+# SET_IDLE rejected (genuine DS3 STALLs this too): ControlOut 0A/0000 len 0: error 31 (A device attached to the system is not functioning.)
+
+## Feature report dumps
+GET Feature 0x01 (identification) len=64
+    00 01 02 00 03 08 01 02 17 17 17 17 09 0a 00 00 
+    00 00 00 00 00 00 04 00 02 02 02 02 00 00 00 04 
+    04 04 04 00 00 01 06 00 00 00 00 00 00 00 00 00 
+    00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+GET Feature 0xF2 (BT address / firmware) len=64
+    f2 ff ff 00 00 19 c1 xx xx xx 00 03 40 80 18 01
+    8a 00 00 00 00 00 04 00 02 02 02 02 00 00 00 04 
+    04 04 04 00 00 01 06 00 00 00 00 00 00 00 00 00 
+    00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+GET Feature 0xF5 (host address) len=64
+    01 00 8c 7c b5 xx xx xx xx xx 00 03 40 80 18 01
+    8a 00 00 00 00 00 04 00 02 02 02 02 00 00 00 04 
+    04 04 04 00 00 01 06 00 00 00 00 00 00 00 00 00 
+    00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+GET Feature 0xEF (plain, no page select) len=64
+    00 ef 02 00 03 03 00 10 00 00 00 00 00 00 00 00 
+    00 00 00 01 64 19 01 00 01 00 01 90 0a 00 00 00 
+    00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 
+    02 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+GET Feature 0xF8 (F8 plain) len=64
+    00 01 00 00 03 03 00 10 00 00 00 00 00 00 00 00 
+    00 00 00 01 64 19 01 00 01 00 01 90 0a 00 00 00 
+    00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 
+    02 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+GET Feature 0xF7 (F7 status) len=64
+    01 00 68 02 d9 01 02 ff 14 23 00 00 00 00 00 00 
+    00 00 00 01 64 19 01 00 01 00 01 90 0a 00 00 00 
+    00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 
+    02 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+SET 0xEF page 0x00 -> GET 0xEF len=64
+    00 ef 02 00 03 03 01 00 00 00 00 00 00 00 00 00 
+    00 c3 c4 c6 c7 c8 ca cb cc cc cd ce ce cf d0 d0 
+    d1 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 
+    02 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+SET 0xEF page 0x10 -> GET 0xEF len=64
+    00 ef 02 00 03 03 01 10 00 00 00 00 00 00 00 00 
+    00 d2 d2 d3 d4 d5 d5 d6 d7 d8 d9 da db dc dc dd 
+    dd 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 
+    02 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+SET 0xEF page 0x20 -> GET 0xEF len=64
+    00 ef 02 00 03 03 01 20 00 00 00 00 00 00 00 00 
+    00 de de de df df e0 e0 e2 e3 e5 e6 e6 e7 e7 e7 
+    e8 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 
+    02 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+SET 0xEF page 0x30 -> GET 0xEF len=64
+    00 ef 02 00 03 03 01 30 00 00 00 00 00 00 00 00 
+    00 e8 e9 e9 ea ea eb eb eb ec ec ed ed ee ee ef 
+    ef 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 
+    02 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+SET 0xEF page 0x40 -> GET 0xEF len=64
+    00 ef 02 00 03 03 01 40 00 00 00 00 00 00 00 00 
+    00 f0 f0 f1 f1 f2 f2 f3 f3 f4 f4 f5 f5 f6 f6 f7 
+    f7 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 
+    02 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00

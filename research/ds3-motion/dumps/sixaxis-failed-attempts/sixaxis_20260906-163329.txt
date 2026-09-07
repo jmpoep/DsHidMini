@@ -1,0 +1,36 @@
+# device: instance 6&4b29c3c&0&1, guid 1097d1bd-c358-4f7d-99de-f96654063c67, path \\?\usb#vid_054c&pid_0268#6&4b29c3c&0&1#{1097d1bd-c358-4f7d-99de-f96654063c67}
+# sixaxis  2026-09-06T16:33:29.7119631+02:00
+# descriptor: VID 054C PID 0268 bcdDevice 0100 bcdUSB 0200 strings: iManufacturer 1 'Sony' iProduct 2 '-' iSerial 0
+# interface 0: class 0x03
+#   pipe 0x02 type 3 OUT mps 64 interval 1
+#   pipe 0x81 type 3 IN mps 64 interval 1
+# EP0 sanity GET_DESCRIPTOR(device) FAILED: ControlIn 06/0100 len 18: error 31 (A device attached to the system is not functioning.)
+# SET_IDLE rejected (genuine DS3 STALLs this too): ControlOut 0A/0000 len 0: error 31 (A device attached to the system is not functioning.)
+
+## Feature report dumps
+GET Feature 0x01 (identification) FAILED: ControlIn 01/0301 len 64: error 31 (A device attached to the system is not functioning.)
+GET Feature 0xF2 (BT address / firmware) FAILED: ControlIn 01/03F2 len 64: error 31 (A device attached to the system is not functioning.)
+GET Feature 0xF5 (host address) FAILED: ControlIn 01/03F5 len 64: error 31 (A device attached to the system is not functioning.)
+GET Feature 0xEF (plain, no page select) FAILED: ControlIn 01/03EF len 64: error 31 (A device attached to the system is not functioning.)
+GET Feature 0xF8 (F8 plain) FAILED: ControlIn 01/03F8 len 64: error 31 (A device attached to the system is not functioning.)
+GET Feature 0xF7 (F7 status) FAILED: ControlIn 01/03F7 len 64: error 31 (A device attached to the system is not functioning.)
+SET/GET 0xEF page 0x00 FAILED: ControlOut 09/03EF len 48: error 31 (A device attached to the system is not functioning.)
+SET/GET 0xEF page 0x10 FAILED: ControlOut 09/03EF len 48: error 31 (A device attached to the system is not functioning.)
+SET/GET 0xEF page 0x20 FAILED: ControlOut 09/03EF len 48: error 31 (A device attached to the system is not functioning.)
+SET/GET 0xEF page 0x30 FAILED: ControlOut 09/03EF len 48: error 31 (A device attached to the system is not functioning.)
+SET/GET 0xEF page 0x40 FAILED: ControlOut 09/03EF len 48: error 31 (A device attached to the system is not functioning.)
+SET/GET 0xEF page 0x50 FAILED: ControlOut 09/03EF len 48: error 31 (A device attached to the system is not functioning.)
+SET/GET 0xEF page 0x60 FAILED: ControlOut 09/03EF len 48: error 31 (A device attached to the system is not functioning.)
+SET/GET 0xEF page 0x70 FAILED: ControlOut 09/03EF len 48: error 31 (A device attached to the system is not functioning.)
+SET/GET 0xEF page 0x80 FAILED: ControlOut 09/03EF len 48: error 31 (A device attached to the system is not functioning.)
+SET/GET 0xEF page 0x90 FAILED: ControlOut 09/03EF len 48: error 31 (A device attached to the system is not functioning.)
+SET/GET 0xEF page 0xA0 FAILED: ControlOut 09/03EF len 48: error 31 (A device attached to the system is not functioning.)
+SET/GET 0xEF page 0xB0 FAILED: ControlOut 09/03EF len 48: error 31 (A device attached to the system is not functioning.)
+SET/GET 0xEF page 0xC0 FAILED: ControlOut 09/03EF len 48: error 31 (A device attached to the system is not functioning.)
+SET/GET 0xEF page 0xD0 FAILED: ControlOut 09/03EF len 48: error 31 (A device attached to the system is not functioning.)
+SET/GET 0xEF page 0xE0 FAILED: ControlOut 09/03EF len 48: error 31 (A device attached to the system is not functioning.)
+SET/GET 0xEF page 0xF0 FAILED: ControlOut 09/03EF len 48: error 31 (A device attached to the system is not functioning.)
+re-select 0xA0 FAILED: ControlOut 09/03EF len 48: error 31 (A device attached to the system is not functioning.)
+## 0xEF page 0xA0 unavailable because the device returned error 31; factory calibration not confirmed
+
+## Enable streaming: SET Feature 0xF4 42 0C 00 00
