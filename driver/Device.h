@@ -1,5 +1,6 @@
 #pragma once
 #include <DmfModule.h>
+#include "DsIdentification.h"
 
 
 EXTERN_C_START
@@ -307,13 +308,20 @@ typedef struct _DEVICE_CONTEXT
 	// 
 	BOOLEAN DeviceAddressSynthesized;
 
-	//
-	// TRUE once GET Feature 0xF2 (device address) has succeeded at least once
-	// this power-up. Gates host-address discovery, Bluetooth pairing and the
-	// wireless-instance disconnect signal, none of which are meaningful for a
-	// device that never reported a Bluetooth MAC of its own. See issue #321.
-	// 
-	BOOLEAN SupportsBluetoothAddressReports;
+		//
+		// TRUE once GET Feature 0xF2 (device address) has succeeded at least once
+		// this power-up. Gates host-address discovery, Bluetooth pairing and the
+		// wireless-instance disconnect signal, none of which are meaningful for a
+		// device that never reported a Bluetooth MAC of its own. See issue #321.
+		// 
+		BOOLEAN SupportsBluetoothAddressReports;
+
+		//
+		// Feature 0x01 identification decoded at USB PrepareHardware. Present is
+		// FALSE for Bluetooth instances and when GET or parse failed. See issue #50.
+		// 
+		BOOLEAN IdentificationPresent;
+		DS_IDENTIFICATION_INFO Identification;
 
 	//
 	// Current reported battery status

@@ -24,6 +24,7 @@
     <ItemGroup>
         <Using Include="System.IO" />
         <ProjectReference Include="..\ControlApp\ControlApp.csproj" />
+        <ProjectReference Include="..\SDK\Nefarius.DsHidMini.IPC\Nefarius.DsHidMini.IPC.csproj" />
     </ItemGroup>
 
     <ItemGroup>

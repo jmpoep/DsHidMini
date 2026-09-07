@@ -108,6 +108,64 @@
                                 DockPanel.Dock="Right"
                                 Text="{Binding BatteryStatusInText}" />
                         </DockPanel>
+                        <!--  Feature 0x01 identification (USB only)  -->
+                        <DockPanel
+                            DockPanel.Dock="Top"
+                            LastChildFill="False"
+                            Visibility="{Binding HasIdentification, Converter={StaticResource BoolToVis_TV_FC}}">
+                            <DockPanel Margin="{StaticResource MyKey_NextLineSpacement}" DockPanel.Dock="Top">
+                                <ui:TextBlock
+                                    DockPanel.Dock="Left"
+                                    Style="{StaticResource MyKey_InfoDescriptionTextbox}"
+                                    Text="Firmware revision:" />
+                                <ui:TextBlock
+                                    HorizontalAlignment="Left"
+                                    VerticalAlignment="Center"
+                                    DockPanel.Dock="Right"
+                                    Text="{Binding IdentificationFirmware}" />
+                            </DockPanel>
+                            <DockPanel Margin="{StaticResource MyKey_NextLineSpacement}" DockPanel.Dock="Top">
+                                <ui:TextBlock
+                                    DockPanel.Dock="Left"
+                                    Style="{StaticResource MyKey_InfoDescriptionTextbox}"
+                                    Text="Controller type:" />
+                                <ui:TextBlock
+                                    HorizontalAlignment="Left"
+                                    VerticalAlignment="Center"
+                                    DockPanel.Dock="Right"
+                                    Text="{Binding IdentificationPadType}" />
+                            </DockPanel>
+                            <DockPanel Margin="{StaticResource MyKey_NextLineSpacement}" DockPanel.Dock="Top">
+                                <ui:TextBlock
+                                    DockPanel.Dock="Left"
+                                    Style="{StaticResource MyKey_InfoDescriptionTextbox}"
+                                    Text="Motion path:" />
+                                <ui:TextBlock
+                                    HorizontalAlignment="Left"
+                                    VerticalAlignment="Center"
+                                    DockPanel.Dock="Right"
+                                    Text="{Binding IdentificationMotionPath}" />
+                            </DockPanel>
+                            <DockPanel Margin="{StaticResource MyKey_NextLineSpacement}" DockPanel.Dock="Top">
+                                <ui:TextBlock
+                                    DockPanel.Dock="Left"
+                                    Style="{StaticResource MyKey_InfoDescriptionTextbox}"
+                                    Text="Clone heuristic:" />
+                                <ui:SymbolIcon
+                                    DockPanel.Dock="Right"
+                                    FontSize="{StaticResource MyKey_SymbolFontSize}"
+                                    Foreground="Yellow"
+                                    Style="{StaticResource MyKey_StatusSymbol}"
+                                    Symbol="Warning24"
+                                    ToolTip="Feature 0x01 matches a known counterfeit signature (field list 01 02 and byte 0x29 = 0x64). This is a heuristic, not a verdict. The OUI/MAC genuine check is separate."
+                                    Visibility="{Binding IdentificationCloneHeuristic, Converter={StaticResource BoolToVis_TV_FH}}" />
+                                <ui:TextBlock
+                                    HorizontalAlignment="Left"
+                                    VerticalAlignment="Center"
+                                    DockPanel.Dock="Right"
+                                    Text="{Binding IdentificationCloneHeuristicText}" />
+                            </DockPanel>
+                        </DockPanel>
                         <!--  Current HID mode  -->
                         <DockPanel Margin="{StaticResource MyKey_NextLineSpacement}" DockPanel.Dock="Top">
                             <ui:TextBlock
