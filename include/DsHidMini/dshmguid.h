@@ -55,3 +55,23 @@ DEFINE_DEVPROPKEY(DEVPKEY_DsHidMini_RO_IpcSlotIndex,
 // {3FECF510-CC94-4FBE-8839-738201F84D59}
 DEFINE_DEVPROPKEY(DEVPKEY_DsHidMini_RO_DeviceAddressSynthesized,
 	0x3fecf510, 0xcc94, 0x4fbe, 0x88, 0x39, 0x73, 0x82, 0x1, 0xf8, 0x4d, 0x59, 7); // DEVPROP_TYPE_BOOLEAN
+
+// Feature 0x01 firmware/board revision packed as b2<<16 | b3<<8 | b4
+// {3FECF510-CC94-4FBE-8839-738201F84D59}
+DEFINE_DEVPROPKEY(DEVPKEY_DsHidMini_RO_IdentificationFirmware,
+	0x3fecf510, 0xcc94, 0x4fbe, 0x88, 0x39, 0x73, 0x82, 0x1, 0xf8, 0x4d, 0x59, 8); // DEVPROP_TYPE_UINT32
+
+// Feature 0x01 pad/sensor type byte (offset 8); informational only, not a gyro-path test
+// {3FECF510-CC94-4FBE-8839-738201F84D59}
+DEFINE_DEVPROPKEY(DEVPKEY_DsHidMini_RO_IdentificationPadType,
+	0x3fecf510, 0xcc94, 0x4fbe, 0x88, 0x39, 0x73, 0x82, 0x1, 0xf8, 0x4d, 0x59, 9); // DEVPROP_TYPE_BYTE
+
+// Feature 0x01 motion path derived from the calibration field list
+// {3FECF510-CC94-4FBE-8839-738201F84D59}
+DEFINE_DEVPROPKEY(DEVPKEY_DsHidMini_RO_IdentificationMotionPath,
+	0x3fecf510, 0xcc94, 0x4fbe, 0x88, 0x39, 0x73, 0x82, 0x1, 0xf8, 0x4d, 0x59, 10); // DEVPROP_TYPE_BYTE
+
+// TRUE if Feature 0x01 matches the clone heuristic (field list 01 02 and byte 0x29 == 0x64)
+// {3FECF510-CC94-4FBE-8839-738201F84D59}
+DEFINE_DEVPROPKEY(DEVPKEY_DsHidMini_RO_IdentificationCloneHeuristic,
+	0x3fecf510, 0xcc94, 0x4fbe, 0x88, 0x39, 0x73, 0x82, 0x1, 0xf8, 0x4d, 0x59, 11); // DEVPROP_TYPE_BOOLEAN

@@ -30,6 +30,13 @@ public static class DsHidMiniDriver
         Guid.Parse("{3FECF510-CC94-4FBE-8839-738201F84D59}"), 3,
         typeof(int));
 
+    /// <summary>
+    ///     Raw 64-byte <c>GET Feature 0x01</c> identification blob. USB only; see issue #50.
+    /// </summary>
+    public static DevicePropertyKey IdentificationDataProperty => CustomDeviceProperty.CreateCustomDeviceProperty(
+        Guid.Parse("{3FECF510-CC94-4FBE-8839-738201F84D59}"), 4,
+        typeof(byte[]));
+
     public static DevicePropertyKey LastHostRequestStatusProperty => CustomDeviceProperty.CreateCustomDeviceProperty(
         Guid.Parse("{3FECF510-CC94-4FBE-8839-738201F84D59}"), 5,
         typeof(int));
@@ -48,6 +55,35 @@ public static class DsHidMiniDriver
     /// </summary>
     public static DevicePropertyKey DeviceAddressSynthesizedProperty => CustomDeviceProperty.CreateCustomDeviceProperty(
         Guid.Parse("{3FECF510-CC94-4FBE-8839-738201F84D59}"), 7,
+        typeof(bool));
+
+    /// <summary>
+    ///     Feature 0x01 firmware/board revision packed as <c>b2&lt;&lt;16 | b3&lt;&lt;8 | b4</c>.
+    /// </summary>
+    public static DevicePropertyKey IdentificationFirmwareProperty => CustomDeviceProperty.CreateCustomDeviceProperty(
+        Guid.Parse("{3FECF510-CC94-4FBE-8839-738201F84D59}"), 8,
+        typeof(uint));
+
+    /// <summary>
+    ///     Feature 0x01 pad/sensor type byte (offset 8). Informational only; not a gyro-path test.
+    /// </summary>
+    public static DevicePropertyKey IdentificationPadTypeProperty => CustomDeviceProperty.CreateCustomDeviceProperty(
+        Guid.Parse("{3FECF510-CC94-4FBE-8839-738201F84D59}"), 9,
+        typeof(byte));
+
+    /// <summary>
+    ///     Feature 0x01 motion path derived from the calibration field list.
+    /// </summary>
+    public static DevicePropertyKey IdentificationMotionPathProperty => CustomDeviceProperty.CreateCustomDeviceProperty(
+        Guid.Parse("{3FECF510-CC94-4FBE-8839-738201F84D59}"), 10,
+        typeof(byte));
+
+    /// <summary>
+    ///     <see langword="true"/> if Feature 0x01 matches the clone heuristic (field list
+    ///     <c>01 02</c> and byte <c>0x29 == 0x64</c>). Heuristic, not a verdict.
+    /// </summary>
+    public static DevicePropertyKey IdentificationCloneHeuristicProperty => CustomDeviceProperty.CreateCustomDeviceProperty(
+        Guid.Parse("{3FECF510-CC94-4FBE-8839-738201F84D59}"), 11,
         typeof(bool));
 
     #endregion
@@ -140,6 +176,40 @@ public enum DsBatteryStatus : byte
     /// </summary>
     [Description("Charged")]
     Charged = 0xEF
+}
+
+/// <summary>
+///     Gyro / motion code path derived from the Feature 0x01 calibration field list.
+///     Type bytes 8-11 must not be used to pick this path (SIXAXIS-2 reports 0x18).
+/// </summary>
+[TypeConverter(typeof(EnumDescriptionTypeConverter))]
+[SuppressMessage("ReSharper", "UnusedMember.Global")]
+public enum DsIdentificationMotionPath : byte
+{
+    /// <summary>
+    ///     Report missing or field list could not be parsed.
+    /// </summary>
+    [Description("Unknown")]
+    Unknown = 0,
+
+    /// <summary>
+    ///     Software zero against the EEPROM gyro zero. Field list starts <c>01 02</c>
+    ///     at index 0 or 1 and does not contain field <c>0x07</c>.
+    /// </summary>
+    [Description("Software zero")]
+    PlainZero = 1,
+
+    /// <summary>
+    ///     Hardware-calibrated gyro. Field list contains <c>0x07</c>.
+    /// </summary>
+    [Description("Hardware-calibrated gyro")]
+    HwCal = 2,
+
+    /// <summary>
+    ///     Original SIXAXIS path. <c>PLAIN_ZERO</c> is clear (typically a single field <c>06</c>).
+    /// </summary>
+    [Description("SIXAXIS")]
+    Sixaxis = 3
 }
 
 /// <summary>

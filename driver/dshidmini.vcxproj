@@ -27,6 +27,7 @@
     <ClCompile Include="DsBth.Timers.c" />
     <ClCompile Include="DsHid.c" />
     <ClCompile Include="DsHidMiniDrv.c" />
+    <ClCompile Include="DsIdentification.c" />
     <ClCompile Include="DsLed.c" />
     <ClCompile Include="DsUsb.c" />
     <ClCompile Include="HID.FeatureReport.c" />
@@ -53,6 +54,7 @@
     <ClInclude Include="DsCommon.h" />
     <ClInclude Include="DsHid.h" />
     <ClInclude Include="DsHidMiniDrv.h" />
+    <ClInclude Include="DsIdentification.h" />
     <ClInclude Include="DsInternal.h" />
     <ClInclude Include="DsLed.h" />
     <ClInclude Include="DsUsb.h" />

@@ -491,6 +491,33 @@ NTSTATUS DsUsb_PrepareHardware(WDFDEVICE Device)
 				ARRAYSIZE(identification),
 				identification
 			);
+
+			if (DsIdentification_Parse(
+				identification,
+				ARRAYSIZE(identification),
+				&pDevCtx->Identification))
+			{
+				pDevCtx->IdentificationPresent = TRUE;
+				DsIdentification_AssignDeviceProperties(Device, &pDevCtx->Identification);
+
+				TraceVerbose(
+					TRACE_DSUSB,
+					"Feature 0x01 firmware %02X %02X %02X type %02X path %d clone %!BOOLEAN!",
+					pDevCtx->Identification.Firmware[0],
+					pDevCtx->Identification.Firmware[1],
+					pDevCtx->Identification.Firmware[2],
+					pDevCtx->Identification.PadType,
+					pDevCtx->Identification.MotionPath,
+					pDevCtx->Identification.CloneHeuristic
+				);
+			}
+			else
+			{
+				TraceWarning(
+					TRACE_DSUSB,
+					"Feature 0x01 identification blob could not be parsed"
+				);
+			}
 		}
 
 #pragma endregion

@@ -381,6 +381,94 @@ public partial class DeviceViewModel : ObservableObject, IDisposable
         Device.GetProperty<string>(DevicePropertyKey.Device_DriverVersion)!.ToUpperInvariant();
 
     /// <summary>
+    ///     <see langword="true"/> if Feature 0x01 identification was published (USB pads
+    ///     that answered GET). Bluetooth instances do not have this property.
+    /// </summary>
+    public bool HasIdentification
+    {
+        get
+        {
+            try
+            {
+                byte[]? raw = Device.GetProperty<byte[]>(DsHidMiniDriver.IdentificationDataProperty);
+                return raw is { Length: > 0 };
+            }
+            catch
+            {
+                return false;
+            }
+        }
+    }
+
+    private DsIdentificationInfo? IdentificationInfo
+    {
+        get
+        {
+            try
+            {
+                byte[]? raw = Device.GetProperty<byte[]>(DsHidMiniDriver.IdentificationDataProperty);
+                if (raw is { Length: > 0 } && DsIdentification.TryParse(raw, out DsIdentificationInfo? parsed))
+                {
+                    return parsed;
+                }
+            }
+            catch
+            {
+                // Property absent or blob too short to decode.
+            }
+
+            return null;
+        }
+    }
+
+    /// <summary>
+    ///     Feature 0x01 firmware/board revision, e.g. <c>04 00 08</c>.
+    /// </summary>
+    public string IdentificationFirmware => IdentificationInfo?.FirmwareDisplay ?? "Unknown";
+
+    /// <summary>
+    ///     Feature 0x01 pad/sensor type byte. Informational; not a gyro-path test.
+    /// </summary>
+    public string IdentificationPadType
+    {
+        get
+        {
+            if (IdentificationInfo is null)
+            {
+                return "Unknown";
+            }
+
+            return IdentificationInfo.PadType switch
+            {
+                0x18 => "DualShock 3-class (0x18)",
+                0x17 => "SIXAXIS-class (0x17)",
+                byte value => $"Unknown (0x{value:X2})"
+            };
+        }
+    }
+
+    /// <summary>
+    ///     Feature 0x01 motion path derived from the calibration field list.
+    /// </summary>
+    public string IdentificationMotionPath =>
+        IdentificationInfo?.MotionPath switch
+        {
+            DsIdentificationMotionPath.HwCal => "Hardware-calibrated gyro",
+            DsIdentificationMotionPath.PlainZero => "Software zero",
+            DsIdentificationMotionPath.Sixaxis => "SIXAXIS",
+            _ => "Unknown"
+        };
+
+    /// <summary>
+    ///     Feature 0x01 clone heuristic (field list <c>01 02</c> and byte <c>0x29 == 0x64</c>).
+    ///     Not the OUI genuine check.
+    /// </summary>
+    public bool IdentificationCloneHeuristic => IdentificationInfo?.CloneHeuristic ?? false;
+
+    public string IdentificationCloneHeuristicText =>
+        IdentificationCloneHeuristic ? "Likely counterfeit" : "No match";
+
+    /// <summary>
     ///     The device Instance ID.
     /// </summary>
     public string InstanceId => Device.InstanceId;

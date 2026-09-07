@@ -1,9 +1,10 @@
 # DualShock 3 / SIXAXIS motion sensors
 
 Research notes for [issue #217](https://github.com/nefarius/DsHidMini/issues/217)
-(motion support). This is the foundation for a later driver implementation;
-**nothing in here is implemented in DsHidMini yet** beyond the SIXAXIS.SYS
-byte-swap described in [What DsHidMini does today](#what-dshidmini-does-today).
+(motion support). Feature `0x01` is parsed and published as device properties
+(see [What DsHidMini publishes](#what-dshidmini-publishes)); motion output is
+**not** implemented yet beyond the SIXAXIS.SYS byte-swap described in
+[What DsHidMini does today](#what-dshidmini-does-today).
 
 Sources of truth used, in order of authority:
 
@@ -136,6 +137,26 @@ A SIXAXIS (single field `06`) matches neither, so it gets `PLAIN_ZERO` clear and
 EEPROM gyro cal-byte slot reads `0`; rajkosto's `UsbDs3.cs` encodes the same
 decision tree.
 
+When DsHidMini (and the SDK parser) collapse those flags to a single motion
+path, **`HW_CAL` wins** if field `0x07` is present. Those pads also match
+`PLAIN_ZERO` because the list is `00 01 02 07` (`01 02` starts at index 1):
+
+| Motion path | Set when | Pads |
+| --- | --- | --- |
+| `HW_CAL` | the field list contains `0x07` | DS3-A1b, DS3-A2 |
+| `SIXAXIS` | `PLAIN_ZERO` is clear (typically a single field `06`) | SIXAXIS-1, SIXAXIS-2 |
+| `PLAIN_ZERO` | the field list starts `01 02` at index 0 or 1 | B1, DS3-A1a, DS3-E, both counterfeits |
+
+### Clone heuristic
+
+A **heuristic**, not a verdict. Both known counterfeits (Obigben, Fake DS3) and
+no genuine pad in the [pad matrix](#pad-matrix) match:
+
+- the calibration field list is exactly `01 02` (count 2, no leading `00`), **and**
+- byte `0x29` is `0x64`
+
+This is independent of the OUI / MAC genuine check used elsewhere.
+
 Two observations from the [pad matrix](#pad-matrix) constrain how this may be
 implemented:
 
@@ -146,6 +167,25 @@ implemented:
   `18 18 18 18` (DS3-class) with a single field `06`, so it takes the SIXAXIS
   path and wants its cal byte at `[3]/[4]` despite claiming to be a DS3. Only
   the field list decides.
+
+### What DsHidMini publishes
+
+On USB, `DsUsb_PrepareHardware` GETs Feature `0x01` (see
+[issue #50](https://github.com/nefarius/DsHidMini/issues/50)) and writes the
+raw 64-byte blob plus the decoded fields as read-only device properties on
+`{3FECF510-CC94-4FBE-8839-738201F84D59}`:
+
+| PID | Key | Type |
+| --- | --- | --- |
+| 4 | `DEVPKEY_DsHidMini_RO_IdentificationData` | BINARY 64 |
+| 8 | `DEVPKEY_DsHidMini_RO_IdentificationFirmware` | UINT32, packed `b2<<16 \| b3<<8 \| b4` |
+| 9 | `DEVPKEY_DsHidMini_RO_IdentificationPadType` | BYTE (first of offsets 8-11; informational) |
+| 10 | `DEVPKEY_DsHidMini_RO_IdentificationMotionPath` | BYTE (`Unknown` / `PlainZero` / `HwCal` / `Sixaxis`) |
+| 11 | `DEVPKEY_DsHidMini_RO_IdentificationCloneHeuristic` | BOOLEAN |
+
+Bluetooth instances are not queried. A GET success with a parse failure still
+keeps the raw blob and leaves the decoded keys unset. Publishing these
+properties does **not** change HID mode, output reports, or rumble.
 
 ## Calibration EEPROM: `Feature 0xEF`, `0xF8`, `0xF7`
 
