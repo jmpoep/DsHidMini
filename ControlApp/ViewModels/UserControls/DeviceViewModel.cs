@@ -193,7 +193,7 @@ public partial class DeviceViewModel : ObservableObject, IDisposable
     {
         get
         {
-            string? name = Device.GetProperty<string>(DevicePropertyKey.Device_FriendlyName);
+            string? name = Device.GetProperty<string>(DevicePropertyKey.NAME);
 
             return string.IsNullOrEmpty(name) ? "DS3 Compatible HID Device" : name;
         }
@@ -393,8 +393,9 @@ public partial class DeviceViewModel : ObservableObject, IDisposable
                 byte[]? raw = Device.GetProperty<byte[]>(DsHidMiniDriver.IdentificationDataProperty);
                 return raw is { Length: > 0 };
             }
-            catch
+            catch (Exception ex)
             {
+                Log.Logger.Warning(ex, "Failed to read identification data of device '{Address}'", DeviceAddress);
                 return false;
             }
         }
@@ -412,9 +413,9 @@ public partial class DeviceViewModel : ObservableObject, IDisposable
                     return parsed;
                 }
             }
-            catch
+            catch (Exception ex)
             {
-                // Property absent or blob too short to decode.
+                Log.Logger.Warning(ex, "Failed to read identification data of device '{Address}'", DeviceAddress);
             }
 
             return null;
