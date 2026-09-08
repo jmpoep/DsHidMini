@@ -408,9 +408,16 @@ public partial class DeviceViewModel : ObservableObject, IDisposable
             try
             {
                 byte[]? raw = Device.GetProperty<byte[]>(DsHidMiniDriver.IdentificationDataProperty);
-                if (raw is { Length: > 0 } && DsIdentification.TryParse(raw, out DsIdentificationInfo? parsed))
+                if (raw is { Length: > 0 })
                 {
-                    return parsed;
+                    if (DsIdentification.TryParse(raw, out DsIdentificationInfo? parsed))
+                    {
+                        return parsed;
+                    }
+
+                    Log.Logger.Warning(
+                        "Failed to parse identification data of device '{Address}'",
+                        DeviceAddress);
                 }
             }
             catch (Exception ex)
