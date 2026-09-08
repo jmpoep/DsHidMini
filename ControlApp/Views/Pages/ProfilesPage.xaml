@@ -18,18 +18,12 @@
     Foreground="{DynamicResource TextFillColorPrimaryBrush}"
     ScrollViewer.CanContentScroll="False"
     mc:Ignorable="d">
-    <Page.Resources>
-        <helpers:BooleanToReverseConverter x:Key="BooleanToReverseConverterKey" />
-        <BooleanToVisibilityConverter x:Key="BoolToVis" />
-    </Page.Resources>
-
-
     <DockPanel VerticalAlignment="Stretch">
         <DockPanel
             Width="250"
             MaxWidth="250"
             DockPanel.Dock="Left"
-            IsEnabled="{Binding ViewModel.SelectedProfileVM.IsEditEnabled, FallbackValue=True, TargetNullValue=False, Converter={StaticResource BooleanToReverseConverterKey}}">
+            IsEnabled="{Binding ViewModel.SelectedProfileVM.IsEditEnabled, FallbackValue=True, TargetNullValue=False, Converter={StaticResource BoolInverter}}">
             <DockPanel.Style>
                 <Style TargetType="DockPanel">
                     <Style.Setters>
@@ -55,40 +49,40 @@
                     <ColumnDefinition Width="3*" />
                     <ColumnDefinition Width="*" />
                 </Grid.ColumnDefinitions>
-                <Button
+                <ui:Button
                     Grid.Column="0"
                     Margin="2"
                     Padding="0"
                     HorizontalAlignment="Stretch"
                     VerticalAlignment="Stretch"
                     Command="{Binding ViewModel.CreateProfileCommand}">
-                    <Button.Content>
+                    <ui:Button.Content>
                         <ui:SymbolIcon Symbol="Add24" />
-                    </Button.Content>
-                </Button>
-                <Button
+                    </ui:Button.Content>
+                </ui:Button>
+                <ui:Button
                     Grid.Column="1"
                     Margin="2"
                     Padding="0"
                     HorizontalAlignment="Stretch"
                     VerticalAlignment="Stretch"
                     Command="{Binding ViewModel.SelectedProfileVM.EnableEditingCommand}">
-                    <Button.Content>
+                    <ui:Button.Content>
                         <ui:TextBlock Text="Edit" />
-                    </Button.Content>
-                </Button>
-                <Button
+                    </ui:Button.Content>
+                </ui:Button>
+                <ui:Button
                     Grid.Column="2"
                     Margin="2"
                     HorizontalAlignment="Stretch"
                     VerticalAlignment="Stretch"
                     Command="{Binding ViewModel.SetProfileAsGlobalCommand}"
                     CommandParameter="{Binding ViewModel.SelectedProfileVM}">
-                    <Button.Content>
+                    <ui:Button.Content>
                         <ui:TextBlock Text="Set as global" />
-                    </Button.Content>
-                </Button>
-                <Button
+                    </ui:Button.Content>
+                </ui:Button>
+                <ui:Button
                     Grid.Column="3"
                     Margin="2"
                     Padding="0"
@@ -96,10 +90,10 @@
                     VerticalAlignment="Stretch"
                     Command="{Binding ViewModel.DeleteProfileCommand}"
                     CommandParameter="{Binding ViewModel.SelectedProfileVM}">
-                    <Button.Content>
+                    <ui:Button.Content>
                         <ui:SymbolIcon HorizontalAlignment="Center" Symbol="Delete28" />
-                    </Button.Content>
-                </Button>
+                    </ui:Button.Content>
+                </ui:Button>
             </Grid>
 
             <ui:ListView
@@ -159,14 +153,44 @@
         </DockPanel>
 
         <ui:Card
+            Padding="10"
             VerticalAlignment="Stretch"
             VerticalContentAlignment="Stretch"
             DockPanel.Dock="Right">
-            <Grid Visibility="{Binding ViewModel.AnyProfileSelected, Converter={StaticResource BoolToVis}}">
-                <viewuserctrls:ProfileUserControl DataContext="{Binding ViewModel.SelectedProfileVM}" />
+            <Grid>
+                <ContentControl
+                    Visibility="{Binding ViewModel.AnyProfileSelected, Converter={StaticResource BoolToVis}}">
+                    <viewuserctrls:ProfileUserControl DataContext="{Binding ViewModel.SelectedProfileVM}" />
+                </ContentControl>
+                <StackPanel
+                    HorizontalAlignment="Center"
+                    VerticalAlignment="Center"
+                    Visibility="{Binding ViewModel.AnyProfileSelected, Converter={StaticResource BoolToVis_TC_FV}}">
+                    <ui:SymbolIcon
+                        HorizontalAlignment="Center"
+                        FontSize="40"
+                        Opacity="0.45"
+                        Symbol="DocumentOnePage20" />
+                    <ui:TextBlock
+                        MaxWidth="280"
+                        Margin="0,12,0,0"
+                        HorizontalAlignment="Center"
+                        Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                        Text="Click a profile for details and settings"
+                        TextAlignment="Center"
+                        TextWrapping="Wrap"
+                        Visibility="{Binding ViewModel.HasProfiles, Converter={StaticResource BoolToVis_TV_FC}}" />
+                    <ui:TextBlock
+                        MaxWidth="280"
+                        Margin="0,12,0,0"
+                        HorizontalAlignment="Center"
+                        Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                        Text="Create a profile to get started"
+                        TextAlignment="Center"
+                        TextWrapping="Wrap"
+                        Visibility="{Binding ViewModel.HasProfiles, Converter={StaticResource BoolToVis_TC_FV}}" />
+                </StackPanel>
             </Grid>
-
-
         </ui:Card>
 
 

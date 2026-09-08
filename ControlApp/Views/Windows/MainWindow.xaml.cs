@@ -38,6 +38,7 @@ public partial class MainWindow : INavigationWindow
         ApplicationThemeManager.Apply(ApplicationTheme.Dark);
 
         InitializeComponent();
+        ApplySavedPlacement();
 
         navigationService.SetNavigationControl(RootNavigation);
         snackbarService.SetSnackbarPresenter(SnackbarPresenter);
@@ -81,12 +82,15 @@ public partial class MainWindow : INavigationWindow
 
         if (TrayWindowPolicy.ShouldHideOnMinimize(ViewModel.AppConfig.MinimizeToTray, WindowState))
         {
+            PersistWindowPlacement();
             HideToTray();
         }
     }
 
     protected override void OnClosing(CancelEventArgs e)
     {
+        PersistWindowPlacement();
+
         if (TrayWindowPolicy.ShouldHideInsteadOfClose(ViewModel.AppConfig.MinimizeToTray, App.IsExiting))
         {
             e.Cancel = true;
@@ -142,6 +146,51 @@ public partial class MainWindow : INavigationWindow
     {
         Hide();
         ShowInTaskbar = false;
+    }
+
+    private void ApplySavedPlacement()
+    {
+        if (!WindowPlacementPolicy.TryRead(ViewModel.AppConfig, out WindowPlacementSnapshot saved))
+        {
+            return;
+        }
+
+        WindowPlacementSnapshot resolved = WindowPlacementPolicy.Resolve(
+            saved,
+            DisplayWorkAreas.GetDipWorkingAreas(),
+            SystemParameters.WorkArea);
+
+        WindowStartupLocation = WindowStartupLocation.Manual;
+        Left = resolved.Left;
+        Top = resolved.Top;
+        Width = resolved.Width;
+        Height = resolved.Height;
+        if (resolved.State == WindowState.Maximized)
+        {
+            WindowState = WindowState.Maximized;
+        }
+    }
+
+    private void PersistWindowPlacement()
+    {
+        Rect bounds = WindowState == WindowState.Normal
+            ? new Rect(Left, Top, Width, Height)
+            : RestoreBounds;
+        if (bounds.Width <= 0 || bounds.Height <= 0 ||
+            double.IsNaN(bounds.Left) || double.IsNaN(bounds.Top))
+        {
+            return;
+        }
+
+        WindowPlacementPolicy.Write(ViewModel.AppConfig, WindowState, bounds);
+        try
+        {
+            ViewModel.AppConfig.Save();
+        }
+        catch (Exception ex)
+        {
+            Log.Logger.Error(ex, "Failed to persist window placement.");
+        }
     }
 
 

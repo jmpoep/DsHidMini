@@ -17,9 +17,6 @@
     Foreground="{DynamicResource TextFillColorPrimaryBrush}"
     ScrollViewer.CanContentScroll="False"
     mc:Ignorable="d">
-    <Page.Resources>
-        <DataTemplate x:Key="MyKey_DeviceStatusSummary" DataType="{x:Type viewuserctrls:DeviceUserControl}" />
-    </Page.Resources>
     <DockPanel>
         <StackPanel
             Margin="0,0,0,8"
@@ -83,7 +80,7 @@
                     <DataTemplate>
                         <ui:Card Padding="5,5,5,5">
                             <Viewbox>
-                                <Grid Width="200" ShowGridLines="False">
+                                <Grid Width="200">
                                     <Grid.RowDefinitions>
                                         <RowDefinition Height="20" />
                                         <RowDefinition Height="Auto" />
@@ -146,7 +143,7 @@
 
                                             <!--  Power cycle/Reconnect button  -->
                                             <Viewbox Margin="0" DockPanel.Dock="Left">
-                                                <Button
+                                                <ui:Button
                                                     Width="50"
                                                     Height="50"
                                                     Padding="5"
@@ -154,8 +151,10 @@
                                                     VerticalAlignment="Stretch"
                                                     HorizontalContentAlignment="Stretch"
                                                     Command="{Binding RestartDeviceCommand}"
-                                                    FontStyle="Normal">
-                                                    <Button.Content>
+                                                    FontStyle="Normal"
+                                                    ToolTip="{Binding RestartDeviceToolTip}"
+                                                    ToolTipService.InitialShowDelay="200">
+                                                    <ui:Button.Content>
                                                         <Viewbox>
                                                             <ui:SymbolIcon
                                                                 Margin="0"
@@ -178,10 +177,10 @@
                                                             </ui:SymbolIcon>
                                                         </Viewbox>
 
-                                                    </Button.Content>
+                                                    </ui:Button.Content>
 
 
-                                                </Button>
+                                                </ui:Button>
 
                                             </Viewbox>
 
@@ -226,8 +225,34 @@
                     Visibility="{Binding ViewModel.AnyDeviceSelected, Converter={StaticResource BoolToVis}}">
                     <viewuserctrls:DeviceUserControl DataContext="{Binding ViewModel.SelectedDevice}" />
                 </ContentControl>
-
-
+                <StackPanel
+                    HorizontalAlignment="Center"
+                    VerticalAlignment="Center"
+                    Visibility="{Binding ViewModel.AnyDeviceSelected, Converter={StaticResource BoolToVis_TC_FV}}">
+                    <ui:SymbolIcon
+                        HorizontalAlignment="Center"
+                        FontSize="40"
+                        Opacity="0.45"
+                        Symbol="XboxController48" />
+                    <ui:TextBlock
+                        MaxWidth="280"
+                        Margin="0,12,0,0"
+                        HorizontalAlignment="Center"
+                        Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                        Text="Click a device for details and settings"
+                        TextAlignment="Center"
+                        TextWrapping="Wrap"
+                        Visibility="{Binding ViewModel.HasConnectedDevices, Converter={StaticResource BoolToVis_TV_FC}}" />
+                    <ui:TextBlock
+                        MaxWidth="280"
+                        Margin="0,12,0,0"
+                        HorizontalAlignment="Center"
+                        Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                        Text="Connect a DualShock 3 to see it here"
+                        TextAlignment="Center"
+                        TextWrapping="Wrap"
+                        Visibility="{Binding ViewModel.HasConnectedDevices, Converter={StaticResource BoolToVis_TC_FV}}" />
+                </StackPanel>
             </Grid>
 
         </ui:Card>

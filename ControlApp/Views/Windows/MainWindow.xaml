@@ -10,6 +10,8 @@
     Title="{Binding ViewModel.ApplicationTitle, Mode=OneWay}"
     Width="1100"
     Height="650"
+    MinWidth="1100"
+    MinHeight="650"
     d:DataContext="{d:DesignInstance local:MainWindow,
                                      IsDesignTimeCreatable=True}"
     d:DesignHeight="450"
@@ -57,14 +59,9 @@
             </ui:TitleBar>
         </DockPanel>
 
-        <Grid DockPanel.Dock="Top">
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="23*" />
-                <ColumnDefinition Width="9*" />
-            </Grid.ColumnDefinitions>
+        <Grid>
             <ui:NavigationView
                 x:Name="RootNavigation"
-                Grid.ColumnSpan="2"
                 Padding="10,0,10,0"
                 FooterMenuItemsSource="{Binding ViewModel.FooterMenuItems, Mode=OneWay}"
                 FrameMargin="0"
@@ -73,16 +70,6 @@
                 MenuItemsSource="{Binding ViewModel.MenuItems, Mode=OneWay}"
                 OpenPaneLength="100"
                 PaneDisplayMode="Left">
-
-                <!--<ui:NavigationView.AutoSuggestBox>
-                <ui:AutoSuggestBox x:Name="AutoSuggestBox" PlaceholderText="Search">
-                    <ui:AutoSuggestBox.Icon>
-                        <ui:IconSourceElement>
-                            <ui:SymbolIconSource Symbol="Search24" />
-                        </ui:IconSourceElement>
-                    </ui:AutoSuggestBox.Icon>
-                </ui:AutoSuggestBox>
-            </ui:NavigationView.AutoSuggestBox>-->
                 <ui:NavigationView.ContentOverlay>
                     <Grid>
                         <ui:SnackbarPresenter x:Name="SnackbarPresenter" Margin="0" />
@@ -90,10 +77,7 @@
                 </ui:NavigationView.ContentOverlay>
             </ui:NavigationView>
 
-            <ui:ContentDialogHost
-                x:Name="RootContentDialog"
-                Grid.Row="0"
-                Grid.ColumnSpan="2" />
+            <ui:ContentDialogHost x:Name="RootContentDialog" />
         </Grid>
 
 

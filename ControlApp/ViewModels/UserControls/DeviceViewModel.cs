@@ -117,6 +117,7 @@ public partial class DeviceViewModel : ObservableObject, IDisposable
         _addressValidator = addressValidator;
         _batteryQuery = new Timer(UpdateBatteryStatus, null, 10000, 10000);
         _deviceUserData = _dshmConfigManager.GetDeviceData(DeviceAddress);
+        _pairingMode = _deviceUserData.BluetoothPairingMode;
         // Loads correspondent controller data based on controller's MAC address 
 
 
@@ -274,7 +275,7 @@ public partial class DeviceViewModel : ObservableObject, IDisposable
     public bool IsCustomPairingAddressVisible => PairingMode == BluetoothPairingMode.Custom;
 
     /// <summary>
-    ///     Index of the desired Bluetooth pairing mode
+    ///     Desired Bluetooth pairing mode. Defaults to pairing to this PC.
     /// </summary>
     public BluetoothPairingMode PairingMode
     {
@@ -369,10 +370,40 @@ public partial class DeviceViewModel : ObservableObject, IDisposable
             : SymbolRegular.Bluetooth24;
 
     /// <summary>
+    ///     Tooltip for the list-card restart / disconnect button.
+    /// </summary>
+    public string RestartDeviceToolTip =>
+        IsWireless
+            ? "Disconnect this wireless controller"
+            : "Restart this USB controller. Requires running as Administrator.";
+
+    /// <summary>
     ///     Last time this device has been seen connected (applies to Bluetooth connected devices only).
     /// </summary>
     public DateTimeOffset LastConnected =>
         Device.GetProperty<DateTimeOffset>(DsHidMiniDriver.BluetoothLastConnectedTimeProperty);
+
+    /// <summary>
+    ///     Display text for <see cref="LastConnected" />. USB sessions have no Bluetooth timestamp.
+    /// </summary>
+    public string LastConnectedDisplay
+    {
+        get
+        {
+            if (!IsWireless)
+            {
+                return "Only available when connected wirelessly";
+            }
+
+            DateTimeOffset lastConnected = LastConnected;
+            if (lastConnected == default || lastConnected.Year < 2000)
+            {
+                return "Unknown";
+            }
+
+            return lastConnected.ToLocalTime().ToString("g");
+        }
+    }
 
     /// <summary>
     ///     The driver version of the device

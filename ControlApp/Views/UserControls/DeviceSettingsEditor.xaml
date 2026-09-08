@@ -15,24 +15,43 @@
     d:DesignWidth="800"
     mc:Ignorable="d">
     <UserControl.Resources>
+        <Style x:Key="SettingsFieldLabel" TargetType="ui:TextBlock">
+            <Setter Property="VerticalAlignment" Value="Center" />
+            <Setter Property="Margin" Value="0,0,12,0" />
+        </Style>
+        <Style x:Key="SettingsSliderLabel" TargetType="TextBlock">
+            <Setter Property="VerticalAlignment" Value="Center" />
+            <Setter Property="Foreground" Value="{DynamicResource TextFillColorPrimaryBrush}" />
+        </Style>
+        <Style x:Key="SettingsSliderValue" TargetType="TextBlock">
+            <Setter Property="VerticalAlignment" Value="Center" />
+            <Setter Property="MinWidth" Value="36" />
+            <Setter Property="Margin" Value="10,0,16,0" />
+            <Setter Property="Foreground" Value="{DynamicResource TextFillColorPrimaryBrush}" />
+        </Style>
+        <Style x:Key="SettingsSliderRow" TargetType="Grid">
+            <Setter Property="MinHeight" Value="40" />
+            <Setter Property="Margin" Value="0,0,0,16" />
+        </Style>
         <DataTemplate x:Key="ModeSetting" DataType="{x:Type deviceSettings:DeviceSettingsViewModel}">
-            <ui:Card Margin="10,0,10,5" DockPanel.Dock="Top">
-                <DockPanel>
+            <ui:Card
+                Margin="0,0,0,14"
+                Padding="20,18"
+                DockPanel.Dock="Top">
+                <DockPanel Margin="2,0">
                     <!--  Outer settings container with override button  -->
-                    <Grid Margin="0,0,0,20" DockPanel.Dock="Top">
+                    <Grid Margin="0,0,0,12" DockPanel.Dock="Top">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*" />
-                            <ColumnDefinition Width="6*" />
-                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
                         </Grid.ColumnDefinitions>
                         <ui:TextBlock
-                            Grid.Column="1"
-                            HorizontalAlignment="Center"
                             VerticalAlignment="Center"
                             FontTypography="Subtitle"
                             Text="{Binding Header}" />
                         <ui:Button
-                            Grid.Column="2"
+                            Grid.Column="1"
+                            Margin="12,0,0,0"
                             HorizontalAlignment="Right"
                             Command="{Binding ResetGroupToOriginalDefaultsCommand}"
                             Content="Reset"
@@ -50,7 +69,7 @@
                         DockPanel.Dock="Top"
                         IsClosable="False"
                         IsOpen="{Binding IsGroupLocked}"
-                        Message="Settings locked by another option to prevent conflitcs"
+                        Message="Settings locked by another option to prevent conflicts"
                         Severity="Informational" />
                 </DockPanel>
             </ui:Card>
@@ -59,10 +78,11 @@
             <DockPanel LastChildFill="False">
                 <DockPanel DockPanel.Dock="Top" LastChildFill="False">
                     <!--  DataContext="{Binding VariableRightEmulToggleCombo}"  -->
-                    <Label
+                    <ui:TextBlock
+                        Style="{StaticResource SettingsFieldLabel}"
                         VerticalAlignment="Center"
-                        Content="Buttons combo:"
-                        DockPanel.Dock="Left" />
+                        DockPanel.Dock="Left"
+                        Text="Buttons combo:" />
                     <ComboBox
                         Width="100"
                         DockPanel.Dock="Left"
@@ -70,26 +90,27 @@
                         SelectedItem="{Binding Button1, Delay=100}" />
                     <ComboBox
                         Width="100"
-                        Margin="5,0,0,0"
+                        Margin="8,0,0,0"
                         DockPanel.Dock="Left"
                         ItemsSource="{Binding Source={helpers:EnumBindingSource {x:Type enums:Button}}}"
                         SelectedItem="{Binding Button2, Delay=100}" />
                     <ComboBox
                         Width="100"
-                        Margin="5,0,0,0"
+                        Margin="8,0,0,0"
                         DockPanel.Dock="Left"
                         ItemsSource="{Binding Source={helpers:EnumBindingSource {x:Type enums:Button}}}"
                         SelectedItem="{Binding Button3, Delay=100}" />
 
                 </DockPanel>
                 <DockPanel
-                    Margin="0,5,0,0"
+                    Margin="0,8,0,0"
                     DockPanel.Dock="Top"
                     LastChildFill="False">
-                    <Label
+                    <ui:TextBlock
+                        Style="{StaticResource SettingsFieldLabel}"
                         VerticalAlignment="Center"
-                        Content="Seconds holding combo for activation:"
-                        DockPanel.Dock="Left" />
+                        DockPanel.Dock="Left"
+                        Text="Seconds holding combo for activation:" />
                     <DockPanel LastChildFill="False">
                         <ui:NumberBox
                             MinWidth="80"
@@ -107,7 +128,7 @@
             <Setter Property="Margin" Value="0,2,0,0" />
             <Setter Property="ContentTemplate" Value="{StaticResource ModeSetting}" />
         </Style>
-        <Thickness x:Key="MyKey_NextLineSpacement" Bottom="10" />
+        <Thickness x:Key="MyKey_NextLineSpacement" Bottom="16" />
 
         <!--#region ===================================================================SubSettingsTemplates=======================================-->
 
@@ -115,11 +136,12 @@
         <DataTemplate DataType="{x:Type deviceSettings:HidModeSettingsViewModel}">
             <StackPanel>
                 <DockPanel Margin="{StaticResource MyKey_NextLineSpacement}">
-                    <Label
+                    <ui:TextBlock
+                        Style="{StaticResource SettingsFieldLabel}"
                         HorizontalAlignment="Left"
                         VerticalAlignment="Center"
-                        Content="HID Emulation Mode:"
-                        DockPanel.Dock="Left" />
+                        DockPanel.Dock="Left"
+                        Text="HID Emulation Mode:" />
                     <ComboBox
                         VerticalAlignment="Center"
                         DockPanel.Dock="Right"
@@ -136,11 +158,12 @@
                 <!--  Pressure buttons mode  -->
                 <DockPanel Margin="{StaticResource MyKey_NextLineSpacement}"
                            Visibility="{Binding Path=Context, Converter={StaticResource VisibilityPerHIDModeConverterKey}, ConverterParameter=11}">
-                    <Label
+                    <ui:TextBlock
+                        Style="{StaticResource SettingsFieldLabel}"
                         HorizontalAlignment="Left"
                         VerticalAlignment="Center"
-                        Content="Pressure buttons mode:"
-                        DockPanel.Dock="Left" />
+                        DockPanel.Dock="Left"
+                        Text="Pressure buttons mode:" />
                     <ComboBox
                         VerticalAlignment="Center"
                         DockPanel.Dock="Right"
@@ -150,11 +173,12 @@
                 <!--  DPAD modes  -->
                 <DockPanel Margin="{StaticResource MyKey_NextLineSpacement}"
                            Visibility="{Binding Path=Context, Converter={StaticResource VisibilityPerHIDModeConverterKey}, ConverterParameter=11}">
-                    <Label
+                    <ui:TextBlock
+                        Style="{StaticResource SettingsFieldLabel}"
                         HorizontalAlignment="Left"
                         VerticalAlignment="Center"
-                        Content="Expose D-Pad as:"
-                        DockPanel.Dock="Left" />
+                        DockPanel.Dock="Left"
+                        Text="Expose D-Pad as:" />
                     <ComboBox
                         VerticalAlignment="Center"
                         DockPanel.Dock="Right"
@@ -174,10 +198,11 @@
                         Content="Allow apps and games to take over LEDs control"
                         IsChecked="{Binding AllowLedsOverride}" />
                     <DockPanel Margin="{StaticResource MyKey_NextLineSpacement}">
-                        <Label
+                        <ui:TextBlock
+                            Style="{StaticResource SettingsFieldLabel}"
                             VerticalAlignment="Center"
-                            Content="LEDs control mode:"
-                            DockPanel.Dock="Left" />
+                            DockPanel.Dock="Left"
+                            Text="LEDs control mode:" />
                         <ComboBox
                             x:Name="LEDModeComboBox"
                             VerticalAlignment="Center"
@@ -235,90 +260,102 @@
                                         Margin="{StaticResource MyKey_NextLineSpacement}"
                                         Content="Use advanced effects"
                                         IsChecked="{Binding UseEffects}" />
-                                    <DockPanel Margin="{StaticResource MyKey_NextLineSpacement}">
-                                        <Label
-                                            HorizontalAlignment="Left"
+                                    <Grid Style="{StaticResource SettingsSliderRow}">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto" />
+                                            <ColumnDefinition Width="Auto" />
+                                            <ColumnDefinition Width="*" />
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock
                                             VerticalAlignment="Center"
-                                            Content="Duration:"
-                                            DockPanel.Dock="Left" />
+                                            Style="{StaticResource SettingsSliderLabel}"
+                                            Text="Duration:" />
+                                        <TextBlock
+                                            Grid.Column="1"
+                                            VerticalAlignment="Center"
+                                            Style="{StaticResource SettingsSliderValue}"
+                                            Text="{Binding Duration}" />
                                         <Slider
-                                            Width="400"
-                                            HorizontalAlignment="Right"
+                                            Grid.Column="2"
+                                            Height="24"
                                             VerticalAlignment="Center"
-                                            DockPanel.Dock="Right"
                                             Maximum="255"
                                             Minimum="0"
                                             SmallChange="1"
                                             Value="{Binding Duration}" />
-                                        <Label
-                                            HorizontalAlignment="Right"
-                                            Content="{Binding Duration}"
-                                            DockPanel.Dock="Right" />
-                                    </DockPanel>
-                                    <DockPanel Margin="{StaticResource MyKey_NextLineSpacement}">
-                                        <Label
-                                            HorizontalAlignment="Left"
+                                    </Grid>
+                                    <Grid Style="{StaticResource SettingsSliderRow}">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto" />
+                                            <ColumnDefinition Width="Auto" />
+                                            <ColumnDefinition Width="*" />
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock
                                             VerticalAlignment="Center"
-                                            Content="Interval duration:"
-                                            DockPanel.Dock="Left" />
+                                            Style="{StaticResource SettingsSliderLabel}"
+                                            Text="Interval duration:" />
+                                        <TextBlock
+                                            Grid.Column="1"
+                                            VerticalAlignment="Center"
+                                            Style="{StaticResource SettingsSliderValue}"
+                                            Text="{Binding IntervalDuration}" />
                                         <Slider
-                                            Width="400"
-                                            HorizontalAlignment="Right"
+                                            Grid.Column="2"
+                                            Height="24"
                                             VerticalAlignment="Center"
-                                            HorizontalContentAlignment="Right"
-                                            ClipToBounds="True"
-                                            DockPanel.Dock="Right"
                                             Maximum="65535"
                                             Minimum="0"
                                             SmallChange="1"
                                             Value="{Binding IntervalDuration}" />
-                                        <Label
-                                            HorizontalAlignment="Right"
-                                            Content="{Binding IntervalDuration}"
-                                            DockPanel.Dock="Right" />
-                                    </DockPanel>
-                                    <DockPanel Margin="{StaticResource MyKey_NextLineSpacement}">
-                                        <Label
-                                            HorizontalAlignment="Left"
+                                    </Grid>
+                                    <Grid Style="{StaticResource SettingsSliderRow}">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto" />
+                                            <ColumnDefinition Width="Auto" />
+                                            <ColumnDefinition Width="*" />
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock
                                             VerticalAlignment="Center"
-                                            Content="Interval ON portion:"
-                                            DockPanel.Dock="Left" />
+                                            Style="{StaticResource SettingsSliderLabel}"
+                                            Text="Interval ON portion:" />
+                                        <TextBlock
+                                            Grid.Column="1"
+                                            VerticalAlignment="Center"
+                                            Style="{StaticResource SettingsSliderValue}"
+                                            Text="{Binding IntervalPortionON}" />
                                         <Slider
-                                            Width="400"
+                                            Grid.Column="2"
+                                            Height="24"
                                             VerticalAlignment="Center"
-                                            ClipToBounds="True"
-                                            DockPanel.Dock="Right"
                                             Maximum="255"
                                             Minimum="0"
                                             SmallChange="1"
-                                            ToolTip="{Binding Value, RelativeSource={RelativeSource Self}}"
                                             Value="{Binding IntervalPortionON}" />
-                                        <Label
-                                            HorizontalAlignment="Right"
-                                            Content="{Binding IntervalPortionON}"
-                                            DockPanel.Dock="Right" />
-
-                                    </DockPanel>
-                                    <DockPanel Margin="{StaticResource MyKey_NextLineSpacement}">
-                                        <Label
-                                            HorizontalAlignment="Left"
+                                    </Grid>
+                                    <Grid Style="{StaticResource SettingsSliderRow}">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto" />
+                                            <ColumnDefinition Width="Auto" />
+                                            <ColumnDefinition Width="*" />
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock
                                             VerticalAlignment="Center"
-                                            Content="Interval OFF portion:"
-                                            DockPanel.Dock="Left" />
+                                            Style="{StaticResource SettingsSliderLabel}"
+                                            Text="Interval OFF portion:" />
+                                        <TextBlock
+                                            Grid.Column="1"
+                                            VerticalAlignment="Center"
+                                            Style="{StaticResource SettingsSliderValue}"
+                                            Text="{Binding IntervalPortionOFF}" />
                                         <Slider
-                                            Width="400"
+                                            Grid.Column="2"
+                                            Height="24"
                                             VerticalAlignment="Center"
-                                            ClipToBounds="True"
-                                            DockPanel.Dock="Right"
                                             Maximum="255"
                                             Minimum="0"
                                             SmallChange="1"
                                             Value="{Binding IntervalPortionOFF}" />
-                                        <Label
-                                            HorizontalAlignment="Right"
-                                            Content="{Binding IntervalPortionOFF}"
-                                            DockPanel.Dock="Right" />
-                                    </DockPanel>
+                                    </Grid>
                                 </StackPanel>
                             </StackPanel>
                         </TabItem>
@@ -339,26 +376,35 @@
                     Content="Disconnect the controller after idle period"
                     DockPanel.Dock="Top"
                     IsChecked="{Binding IsWirelessIdleDisconnectEnabled}" />
-                <DockPanel Margin="{StaticResource MyKey_NextLineSpacement}" DockPanel.Dock="Top">
-                    <Label
+                <Grid
+                    Style="{StaticResource SettingsSliderRow}"
+                    DockPanel.Dock="Top">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+                    <TextBlock
                         VerticalAlignment="Center"
-                        Content="Idle disconnect period (in minutes):"
-                        DockPanel.Dock="Left" />
-                    <Label
+                        Style="{StaticResource SettingsSliderLabel}"
+                        Text="Idle disconnect period (in minutes):" />
+                    <TextBlock
+                        Grid.Column="1"
                         VerticalAlignment="Center"
-                        VerticalContentAlignment="Center"
-                        Content="{Binding WirelessIdleDisconnectTime}"
-                        DockPanel.Dock="Left" />
+                        Style="{StaticResource SettingsSliderValue}"
+                        Text="{Binding WirelessIdleDisconnectTime}" />
                     <Slider
+                        Grid.Column="2"
+                        Height="24"
+                        VerticalAlignment="Center"
                         AutoToolTipPlacement="TopLeft"
-                        DockPanel.Dock="Left"
                         IsEnabled="{Binding IsWirelessIdleDisconnectEnabled}"
                         IsSnapToTickEnabled="True"
                         Maximum="60"
                         Minimum="1"
                         TickFrequency="1"
                         Value="{Binding WirelessIdleDisconnectTime}" />
-                </DockPanel>
+                </Grid>
                 <ui:ToggleSwitch
                     x:Name="EnableQuickDisconnectComboCheckbox"
                     Margin="{StaticResource MyKey_NextLineSpacement}"
@@ -388,35 +434,38 @@
                         <ColumnDefinition Width="2*" />
                     </Grid.ColumnDefinitions>
                     <Grid.RowDefinitions>
-                        <RowDefinition />
-                        <RowDefinition />
-                        <RowDefinition />
-                        <RowDefinition />
-                        <RowDefinition />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
                     </Grid.RowDefinitions>
                     <!--  Row 0: Labels  -->
-                    <Label
+                    <ui:TextBlock
+                        Style="{StaticResource SettingsFieldLabel}"
                         Grid.Row="0"
                         Grid.Column="1"
-                        HorizontalContentAlignment="Center"
-                        VerticalContentAlignment="Center"
-                        Content="Left Stick" />
-                    <Label
+                        Margin="4,0,4,8"
+                        HorizontalAlignment="Center"
+                        Text="Left Stick" />
+                    <ui:TextBlock
+                        Style="{StaticResource SettingsFieldLabel}"
                         Grid.Row="0"
                         Grid.Column="2"
-                        HorizontalContentAlignment="Center"
-                        VerticalContentAlignment="Center"
-                        Content="Right Stick" />
+                        Margin="4,0,4,8"
+                        HorizontalAlignment="Center"
+                        Text="Right Stick" />
                     <!--  Row 1: DeadZone  -->
-                    <Label
+                    <ui:TextBlock
+                        Style="{StaticResource SettingsFieldLabel}"
                         Grid.Row="1"
                         Grid.Column="0"
-                        HorizontalContentAlignment="Left"
-                        VerticalContentAlignment="Center"
-                        Content="DeadZone (%):" />
+                        Margin="0,6,12,6"
+                        HorizontalAlignment="Left"
+                        Text="DeadZone (%):" />
                     <ui:NumberBox
                         Grid.Row="1"
                         Grid.Column="1"
+                        Margin="4,6"
                         ClearButtonEnabled="False"
                         ClipToBounds="True"
                         Maximum="142"
@@ -425,43 +474,50 @@
                     <ui:NumberBox
                         Grid.Row="1"
                         Grid.Column="2"
+                        Margin="4,6"
                         ClearButtonEnabled="False"
                         ClipToBounds="True"
                         Maximum="142"
                         Minimum="0"
                         Value="{Binding RightStickDeadZone, UpdateSourceTrigger=PropertyChanged}" />
                     <!--  Row 2: Invert X  -->
-                    <Label
+                    <ui:TextBlock
+                        Style="{StaticResource SettingsFieldLabel}"
                         Grid.Row="2"
                         Grid.Column="0"
-                        HorizontalContentAlignment="Left"
-                        VerticalContentAlignment="Center"
-                        Content="Invert horizontally (X-Axis):" />
+                        Margin="0,6,12,6"
+                        HorizontalAlignment="Left"
+                        Text="Invert horizontally (X-Axis):" />
                     <ui:ToggleSwitch
                         Grid.Row="2"
                         Grid.Column="1"
+                        Margin="4,6"
                         HorizontalAlignment="Center"
                         IsChecked="{Binding InvertLSX}" />
                     <ui:ToggleSwitch
                         Grid.Row="2"
                         Grid.Column="2"
+                        Margin="4,6"
                         HorizontalAlignment="Center"
                         IsChecked="{Binding InvertRSX}" />
                     <!--  Row 3: Invert Y  -->
-                    <Label
+                    <ui:TextBlock
+                        Style="{StaticResource SettingsFieldLabel}"
                         Grid.Row="3"
                         Grid.Column="0"
-                        HorizontalContentAlignment="Left"
-                        VerticalContentAlignment="Center"
-                        Content="Invert vertically (Y-Axis):" />
+                        Margin="0,6,12,6"
+                        HorizontalAlignment="Left"
+                        Text="Invert vertically (Y-Axis):" />
                     <ui:ToggleSwitch
                         Grid.Row="3"
                         Grid.Column="1"
+                        Margin="4,6"
                         HorizontalAlignment="Center"
                         IsChecked="{Binding InvertLSY}" />
                     <ui:ToggleSwitch
                         Grid.Row="3"
                         Grid.Column="2"
+                        Margin="4,6"
                         HorizontalAlignment="Center"
                         IsChecked="{Binding InvertRSY}" />
                 </Grid>
@@ -520,10 +576,9 @@
                                Visibility="{Binding AltModeToggleButtonCombo.IsEnabled, Converter={StaticResource BoolToVis_TV_FH}}">
                         <ui:ToggleSwitch
                             Margin="{StaticResource MyKey_NextLineSpacement}"
+                            Content="Start in normal mode"
                             DockPanel.Dock="Top"
-                            IsChecked="{Binding AlwaysStartInNormalRumbleMode}">
-                            <Label Content="Start in normal mode" />
-                        </ui:ToggleSwitch>
+                            IsChecked="{Binding AlwaysStartInNormalRumbleMode}" />
                         <ui:ToggleSwitch
                             Margin="{StaticResource MyKey_NextLineSpacement}"
                             Content="Disable left motor (heavy) when in normal mode"
@@ -548,30 +603,42 @@
                 <!--  Output rate enabler  -->
                 <ui:ToggleSwitch
                     Margin="{StaticResource MyKey_NextLineSpacement}"
+                    VerticalContentAlignment="Center"
                     Content="Limit maximum output rate when wireless"
                     DockPanel.Dock="Top"
                     IsChecked="{Binding IsOutputReportRateControlEnabled}" />
                 <!--  Max output rate adjuster  -->
-                <DockPanel Margin="{StaticResource MyKey_NextLineSpacement}" DockPanel.Dock="Top">
-                    <Label
+                <Grid
+                    Style="{StaticResource SettingsSliderRow}"
+                    DockPanel.Dock="Top">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+                    <TextBlock
                         VerticalAlignment="Center"
-                        Content="Max output rate  (in ms):"
-                        DockPanel.Dock="Left" />
-                    <Label
+                        Style="{StaticResource SettingsSliderLabel}"
+                        Text="Max output rate (in ms):" />
+                    <TextBlock
+                        Grid.Column="1"
                         VerticalAlignment="Center"
-                        Content="{Binding MaxOutputRate}"
-                        DockPanel.Dock="Left" />
+                        Style="{StaticResource SettingsSliderValue}"
+                        Text="{Binding MaxOutputRate}" />
                     <Slider
-                        DockPanel.Dock="Left"
+                        Grid.Column="2"
+                        Height="24"
+                        VerticalAlignment="Center"
                         IsSnapToTickEnabled="True"
                         Maximum="255"
                         Minimum="1"
                         TickFrequency="1"
                         Value="{Binding MaxOutputRate}" />
-                </DockPanel>
+                </Grid>
                 <!--  Output report detuplicator  -->
                 <ui:ToggleSwitch
                     Margin="{StaticResource MyKey_NextLineSpacement}"
+                    VerticalContentAlignment="Center"
                     Content="Enable output report deduplicator"
                     DockPanel.Dock="Top"
                     IsChecked="{Binding IsOutputReportDeduplicatorEnabled}" />
@@ -584,49 +651,65 @@
                 <!--  Left motor str rescaling ui:ToggleSwitch  -->
                 <ui:ToggleSwitch
                     Margin="{StaticResource MyKey_NextLineSpacement}"
+                    VerticalContentAlignment="Center"
                     Content="Enable rescaling of left motor strength"
                     DockPanel.Dock="Top"
                     IsChecked="{Binding IsLeftMotorStrRescalingEnabled}" />
                 <!--  Upper range controls  -->
-                <DockPanel Margin="{StaticResource MyKey_NextLineSpacement}" DockPanel.Dock="Top">
-                    <Label
-                        HorizontalAlignment="Left"
+                <Grid
+                    Style="{StaticResource SettingsSliderRow}"
+                    DockPanel.Dock="Top">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+                    <TextBlock
                         VerticalAlignment="Center"
-                        Content="New upper range:"
-                        DockPanel.Dock="Left" />
-                    <Label
+                        Style="{StaticResource SettingsSliderLabel}"
+                        Text="New upper range:" />
+                    <TextBlock
+                        Grid.Column="1"
                         VerticalAlignment="Center"
-                        VerticalContentAlignment="Center"
-                        Content="{Binding LeftMotorStrRescalingUpperRange}"
-                        DockPanel.Dock="Left" />
+                        Style="{StaticResource SettingsSliderValue}"
+                        Text="{Binding LeftMotorStrRescalingUpperRange}" />
                     <Slider
-                        DockPanel.Dock="Right"
+                        Grid.Column="2"
+                        Height="24"
+                        VerticalAlignment="Center"
                         IsSnapToTickEnabled="True"
                         Maximum="255"
                         Minimum="2"
                         TickFrequency="1"
                         Value="{Binding LeftMotorStrRescalingUpperRange}" />
-                </DockPanel>
-                <!--  lower range controls  -->
-                <DockPanel Margin="{StaticResource MyKey_NextLineSpacement}" DockPanel.Dock="Top">
-                    <Label
-                        HorizontalAlignment="Left"
+                </Grid>
+                <Grid
+                    Style="{StaticResource SettingsSliderRow}"
+                    DockPanel.Dock="Top">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+                    <TextBlock
                         VerticalAlignment="Center"
-                        Content="New lower range:"
-                        DockPanel.Dock="Left" />
-                    <Label
+                        Style="{StaticResource SettingsSliderLabel}"
+                        Text="New lower range:" />
+                    <TextBlock
+                        Grid.Column="1"
                         VerticalAlignment="Center"
-                        VerticalContentAlignment="Center"
-                        Content="{Binding LeftMotorStrRescalingLowerRange}"
-                        DockPanel.Dock="Left" />
+                        Style="{StaticResource SettingsSliderValue}"
+                        Text="{Binding LeftMotorStrRescalingLowerRange}" />
                     <Slider
-                        DockPanel.Dock="Right"
+                        Grid.Column="2"
+                        Height="24"
+                        VerticalAlignment="Center"
                         IsSnapToTickEnabled="True"
                         Maximum="254"
                         Minimum="1"
                         TickFrequency="1"
                         Value="{Binding LeftMotorStrRescalingLowerRange}" />
-                </DockPanel>
+                </Grid>
             </DockPanel>
         </DataTemplate>
 
@@ -634,112 +717,150 @@
         <DataTemplate DataType="{x:Type deviceSettings:AltRumbleModeSettingsViewModel}">
             <DockPanel>
                 <!--  Conversion upper range  -->
-                <DockPanel Margin="{StaticResource MyKey_NextLineSpacement}" DockPanel.Dock="Top">
-                    <Label
-                        HorizontalAlignment="Left"
+                <Grid
+                    Style="{StaticResource SettingsSliderRow}"
+                    DockPanel.Dock="Top">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+                    <TextBlock
                         VerticalAlignment="Center"
-                        Content="Conversion upper range:"
-                        DockPanel.Dock="Left" />
-                    <Label
+                        Style="{StaticResource SettingsSliderLabel}"
+                        Text="Conversion upper range:" />
+                    <TextBlock
+                        Grid.Column="1"
                         VerticalAlignment="Center"
-                        VerticalContentAlignment="Center"
-                        Content="{Binding RightRumbleConversionUpperRange}"
-                        DockPanel.Dock="Left" />
+                        Style="{StaticResource SettingsSliderValue}"
+                        Text="{Binding RightRumbleConversionUpperRange}" />
                     <Slider
-                        DockPanel.Dock="Right"
+                        Grid.Column="2"
+                        Height="24"
+                        VerticalAlignment="Center"
                         IsSnapToTickEnabled="True"
                         Maximum="255"
                         Minimum="2"
                         TickFrequency="1"
                         Value="{Binding RightRumbleConversionUpperRange}" />
-                </DockPanel>
-                <!--  Conversion lower range  -->
-                <DockPanel Margin="{StaticResource MyKey_NextLineSpacement}" DockPanel.Dock="Top">
-                    <Label
-                        HorizontalAlignment="Left"
+                </Grid>
+                <Grid
+                    Style="{StaticResource SettingsSliderRow}"
+                    DockPanel.Dock="Top">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+                    <TextBlock
                         VerticalAlignment="Center"
-                        Content="Conversion lower range:"
-                        DockPanel.Dock="Left" />
-                    <Label
+                        Style="{StaticResource SettingsSliderLabel}"
+                        Text="Conversion lower range:" />
+                    <TextBlock
+                        Grid.Column="1"
                         VerticalAlignment="Center"
-                        VerticalContentAlignment="Center"
-                        Content="{Binding RightRumbleConversionLowerRange}"
-                        DockPanel.Dock="Left" />
+                        Style="{StaticResource SettingsSliderValue}"
+                        Text="{Binding RightRumbleConversionLowerRange}" />
                     <Slider
-                        DockPanel.Dock="Right"
+                        Grid.Column="2"
+                        Height="24"
+                        VerticalAlignment="Center"
                         IsSnapToTickEnabled="True"
                         Maximum="254"
                         Minimum="1"
                         TickFrequency="1"
                         Value="{Binding RightRumbleConversionLowerRange}" />
-                </DockPanel>
-                <Label
+                </Grid>
+                <ui:TextBlock
+                    Style="{StaticResource SettingsFieldLabel}"
                     Margin="{StaticResource MyKey_NextLineSpacement}"
                     HorizontalAlignment="Left"
                     VerticalAlignment="Center"
-                    Content="Force activate right motor when above..."
-                    DockPanel.Dock="Top" />
-                <!--  Forced right motor activation / light rumble threshold  -->
-                <DockPanel Margin="{StaticResource MyKey_NextLineSpacement}" DockPanel.Dock="Top">
-                    <ui:ToggleSwitch
-                        x:Name="ForcedRMLeftThresholdCheckbox"
-                        Content="Left rumble threshold:"
-                        DockPanel.Dock="Left"
-                        IsChecked="{Binding IsForcedRightMotorHeavyThresholdEnabled}" />
-                    <Label
+                    DockPanel.Dock="Top"
+                    Text="Force activate right motor when above..." />
+                <ui:ToggleSwitch
+                    x:Name="ForcedRMLeftThresholdCheckbox"
+                    Margin="{StaticResource MyKey_NextLineSpacement}"
+                    Content="Enable left rumble threshold"
+                    DockPanel.Dock="Top"
+                    IsChecked="{Binding IsForcedRightMotorHeavyThresholdEnabled}" />
+                <Grid
+                    Style="{StaticResource SettingsSliderRow}"
+                    DockPanel.Dock="Top"
+                    IsEnabled="{Binding IsForcedRightMotorHeavyThresholdEnabled}">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+                    <TextBlock
                         VerticalAlignment="Center"
-                        VerticalContentAlignment="Center"
-                        Content="{Binding ForcedRightMotorHeavyThreshold}"
-                        DockPanel.Dock="Left" />
+                        Style="{StaticResource SettingsSliderLabel}"
+                        Text="Left rumble threshold:" />
+                    <TextBlock
+                        Grid.Column="1"
+                        VerticalAlignment="Center"
+                        Style="{StaticResource SettingsSliderValue}"
+                        Text="{Binding ForcedRightMotorHeavyThreshold}" />
                     <Slider
-                        DockPanel.Dock="Right"
-                        IsEnabled="{Binding IsForcedRightMotorHeavyThresholdEnabled}"
+                        Grid.Column="2"
+                        Height="24"
+                        VerticalAlignment="Center"
                         IsSnapToTickEnabled="True"
                         Maximum="255"
                         Minimum="1"
                         TickFrequency="1"
                         Value="{Binding ForcedRightMotorHeavyThreshold}" />
-                </DockPanel>
-                <!--  Forced right motor activation / heavy rumble threshold  -->
-                <DockPanel Margin="{StaticResource MyKey_NextLineSpacement}" DockPanel.Dock="Top">
-                    <ui:ToggleSwitch
-                        x:Name="ForcedRMRightThresholdCheckbox"
+                </Grid>
+                <ui:ToggleSwitch
+                    x:Name="ForcedRMRightThresholdCheckbox"
+                    Margin="{StaticResource MyKey_NextLineSpacement}"
+                    VerticalAlignment="Center"
+                    VerticalContentAlignment="Center"
+                    Content="Enable right rumble threshold"
+                    DockPanel.Dock="Top"
+                    IsChecked="{Binding IsForcedRightMotorLightThresholdEnabled}" />
+                <Grid
+                    Style="{StaticResource SettingsSliderRow}"
+                    DockPanel.Dock="Top"
+                    IsEnabled="{Binding IsForcedRightMotorLightThresholdEnabled}">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+                    <TextBlock
                         VerticalAlignment="Center"
-                        VerticalContentAlignment="Center"
-                        Content="Right rumble threshold:"
-                        DockPanel.Dock="Left"
-                        IsChecked="{Binding IsForcedRightMotorLightThresholdEnabled}" />
-                    <Label
+                        Style="{StaticResource SettingsSliderLabel}"
+                        Text="Right rumble threshold:" />
+                    <TextBlock
+                        Grid.Column="1"
                         VerticalAlignment="Center"
-                        VerticalContentAlignment="Center"
-                        Content="{Binding ForcedRightMotorLightThreshold}"
-                        DockPanel.Dock="Left" />
+                        Style="{StaticResource SettingsSliderValue}"
+                        Text="{Binding ForcedRightMotorLightThreshold}" />
                     <Slider
-                        DockPanel.Dock="Right"
-                        IsEnabled="{Binding IsForcedRightMotorLightThresholdEnabled}"
+                        Grid.Column="2"
+                        Height="24"
+                        VerticalAlignment="Center"
                         IsSnapToTickEnabled="True"
                         Maximum="255"
                         Minimum="1"
                         TickFrequency="1"
                         Value="{Binding ForcedRightMotorLightThreshold}" />
-                </DockPanel>
+                </Grid>
             </DockPanel>
         </DataTemplate>
 
 
         <!--#endregion-->
-        <Style BasedOn="{StaticResource {x:Type Label}}" TargetType="Label">
-            <Setter Property="VerticalAlignment" Value="Center" />
-            <Setter Property="VerticalContentAlignment" Value="Center" />
-            <Setter Property="Margin" Value="0,0,10,0" />
-        </Style>
     </UserControl.Resources>
     <ui:DynamicScrollViewer>
         <DockPanel
+            Margin="4,0,8,8"
             HorizontalAlignment="Stretch"
-            VerticalAlignment="Stretch"
+            VerticalAlignment="Top"
             IsEnabled="{Binding AllowEditing}"
-            LastChildFill="True">
+            LastChildFill="False">
 
             <ItemsControl DockPanel.Dock="Top" ItemsSource="{Binding PrimaryGroups}">
                 <ItemsControl.ItemTemplate>
@@ -748,14 +869,15 @@
             </ItemsControl>
 
             <ui:CardExpander
-                Margin="10"
+                Margin="0,4,0,12"
+                Padding="16,8"
                 DockPanel.Dock="Top"
                 Header="Advanced settings">
                 <ui:CardExpander.Content>
-                    <DockPanel>
+                    <DockPanel Margin="0,8,0,0">
                         <ui:InfoBar
                             Title="Advanced settings ahead!"
-                            Margin="10"
+                            Margin="0,0,0,12"
                             DockPanel.Dock="Top"
                             IsClosable="False"
                             IsOpen="True"
