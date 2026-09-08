@@ -48,6 +48,31 @@ public class ApplicationConfiguration
     private bool _minimizeToTray;
 
     /// <summary>
+    ///     Last restored window left, in WPF device-independent pixels.
+    /// </summary>
+    public double? WindowLeft { get; set; }
+
+    /// <summary>
+    ///     Last restored window top, in WPF device-independent pixels.
+    /// </summary>
+    public double? WindowTop { get; set; }
+
+    /// <summary>
+    ///     Last restored window width, in WPF device-independent pixels.
+    /// </summary>
+    public double? WindowWidth { get; set; }
+
+    /// <summary>
+    ///     Last restored window height, in WPF device-independent pixels.
+    /// </summary>
+    public double? WindowHeight { get; set; }
+
+    /// <summary>
+    ///     Last non-minimized window state (Normal or Maximized).
+    /// </summary>
+    public WindowState WindowState { get; set; } = WindowState.Normal;
+
+    /// <summary>
     ///     When true, Minimize and Close hide the window to the system tray instead of exiting.
     /// </summary>
     public bool MinimizeToTray

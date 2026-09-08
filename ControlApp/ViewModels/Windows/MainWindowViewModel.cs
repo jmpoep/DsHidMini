@@ -1,4 +1,5 @@
 ﻿using System.Collections.ObjectModel;
+using System.Reflection;
 
 using Nefarius.DsHidMini.ControlApp.Models;
 using Nefarius.DsHidMini.ControlApp.Services;
@@ -13,7 +14,7 @@ public partial class MainWindowViewModel : ObservableObject
     private readonly AppSnackbarMessagesService _appSnackbarMessagesService;
 
     [ObservableProperty]
-    private string _applicationTitle = "DsHidMini ControlApp";
+    private string _applicationTitle = $"DsHidMini ControlApp {GetDisplayVersion()}";
 
     [ObservableProperty]
     private ObservableCollection<object> _footerMenuItems = new()
@@ -58,6 +59,21 @@ public partial class MainWindowViewModel : ObservableObject
     public ApplicationConfiguration AppConfig => ApplicationConfiguration.Instance;
 
     public event EventHandler? OpenFromTrayRequested;
+
+    internal static string GetDisplayVersion()
+    {
+        string? informational = Assembly.GetExecutingAssembly()
+            .GetCustomAttribute<AssemblyInformationalVersionAttribute>()
+            ?.InformationalVersion;
+
+        if (!string.IsNullOrWhiteSpace(informational))
+        {
+            int metadataSeparator = informational.IndexOf('+');
+            return metadataSeparator >= 0 ? informational[..metadataSeparator] : informational;
+        }
+
+        return Assembly.GetExecutingAssembly().GetName().Version?.ToString() ?? string.Empty;
+    }
 
     [RelayCommand]
     public void RestartAsAdmin()

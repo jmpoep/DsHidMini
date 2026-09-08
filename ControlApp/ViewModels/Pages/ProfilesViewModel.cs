@@ -21,6 +21,9 @@ public partial class ProfilesViewModel : ObservableObject, INavigationAware
     private bool _anyProfileSelected;
 
     [ObservableProperty]
+    private bool _hasProfiles;
+
+    [ObservableProperty]
     private List<ProfileViewModel> _profilesViewModels;
 
     [ObservableProperty]
@@ -77,6 +80,7 @@ public partial class ProfilesViewModel : ObservableObject, INavigationAware
         }
 
         ProfilesViewModels = newList;
+        HasProfiles = newList.Count > 0;
         UpdateGlobalProfileCheck();
 
         if (selectedGuid is Guid guid)

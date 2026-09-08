@@ -14,11 +14,11 @@
     ui:Design.Background="{DynamicResource ApplicationBackgroundBrush}"
     ui:Design.Foreground="{DynamicResource TextFillColorPrimaryBrush}"
     Foreground="{DynamicResource TextFillColorPrimaryBrush}"
+    ScrollViewer.CanContentScroll="False"
     mc:Ignorable="d">
-    <Page.Resources>
-    </Page.Resources>
-
-    <ScrollViewer VerticalScrollBarVisibility="Auto">
+    <ScrollViewer
+        HorizontalScrollBarVisibility="Disabled"
+        VerticalScrollBarVisibility="Auto">
         <StackPanel Margin="20">
             <CheckBox
                 Margin="0,0,0,8"
@@ -93,6 +93,13 @@
                     Icon="{ui:SymbolIcon QuestionCircle24}"
                     NavigateUri="https://docs.nefarius.at/projects/BthPS3/" />
             </StackPanel>
+            <ui:TextBlock
+                Margin="0,28,0,8"
+                FontTypography="Subtitle"
+                Text="About" />
+            <ui:TextBlock
+                Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                Text="{Binding ViewModel.AppVersion}" />
         </StackPanel>
     </ScrollViewer>
 </Page>

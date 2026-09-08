@@ -35,6 +35,12 @@ public partial class DevicesViewModel : ObservableObject, INavigationAware
     [ObservableProperty]
     private bool _anyDeviceSelected;
 
+    /// <summary>
+    ///     True when at least one DsHidMini device is in the list.
+    /// </summary>
+    [ObservableProperty]
+    private bool _hasConnectedDevices;
+
 
     /// <summary>
     ///     Currently selected device, if any.
@@ -231,6 +237,7 @@ public partial class DevicesViewModel : ObservableObject, INavigationAware
                 SelectedDevice = null;
                 List<DeviceViewModel> previous = Devices.ToList();
                 Devices.Clear();
+                HasConnectedDevices = false;
                 foreach (DeviceViewModel oldDev in previous)
                 {
                     oldDev.Dispose();
@@ -252,6 +259,7 @@ public partial class DevicesViewModel : ObservableObject, INavigationAware
                     }
 
                     Devices.Add(newDev);
+                    HasConnectedDevices = true;
                     await newDev.RefreshDeviceSettings();
                     if (selectedAddress is not null &&
                         string.Equals(newDev.DeviceAddress, selectedAddress,

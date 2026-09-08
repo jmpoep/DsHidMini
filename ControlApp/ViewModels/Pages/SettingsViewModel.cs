@@ -1,8 +1,7 @@
-﻿using System.Reflection;
-
-using Nefarius.DsHidMini.ControlApp.Models;
+﻿using Nefarius.DsHidMini.ControlApp.Models;
 using Nefarius.DsHidMini.ControlApp.Models.DshmConfigManager;
 using Nefarius.DsHidMini.ControlApp.Services;
+using Nefarius.DsHidMini.ControlApp.ViewModels.Windows;
 
 using Wpf.Ui.Abstractions.Controls;
 using Wpf.Ui.Appearance;
@@ -135,15 +134,9 @@ public partial class SettingsViewModel : ObservableObject, INavigationAware
     private void InitializeViewModel()
     {
         CurrentTheme = ApplicationThemeManager.GetAppTheme();
-        AppVersion = $"Dshm_ControlApp_WpfUi - {GetAssemblyVersion()}";
+        AppVersion = $"DsHidMini ControlApp {MainWindowViewModel.GetDisplayVersion()}";
 
         _isInitialized = true;
-    }
-
-    private string GetAssemblyVersion()
-    {
-        return Assembly.GetExecutingAssembly().GetName().Version?.ToString()
-               ?? string.Empty;
     }
 
     [RelayCommand]

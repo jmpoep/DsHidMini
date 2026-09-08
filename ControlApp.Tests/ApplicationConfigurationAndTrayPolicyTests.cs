@@ -37,6 +37,106 @@ public class ApplicationConfigurationAndTrayPolicyTests
         Assert.False(config.MinimizeToTray);
     }
 
+    [Fact]
+    public void ApplicationConfiguration_JsonRoundTrip_PreservesWindowPlacement()
+    {
+        ApplicationConfiguration original = new()
+        {
+            WindowLeft = -1100,
+            WindowTop = 100,
+            WindowWidth = 1280,
+            WindowHeight = 800,
+            WindowState = WindowState.Maximized
+        };
+
+        string json = JsonConvert.SerializeObject(original);
+        ApplicationConfiguration? loaded = JsonConvert.DeserializeObject<ApplicationConfiguration>(json);
+
+        Assert.NotNull(loaded);
+        Assert.Equal(-1100, loaded.WindowLeft);
+        Assert.Equal(100, loaded.WindowTop);
+        Assert.Equal(1280, loaded.WindowWidth);
+        Assert.Equal(800, loaded.WindowHeight);
+        Assert.Equal(WindowState.Maximized, loaded.WindowState);
+    }
+
+    [Fact]
+    public void WindowPlacementPolicy_TryRead_RejectsMissingSize()
+    {
+        Assert.False(WindowPlacementPolicy.TryRead(new ApplicationConfiguration(), out _));
+    }
+
+    [Fact]
+    public void WindowPlacementPolicy_Resolve_KeepsPlacementWhenTitleBarIsOnAMonitor()
+    {
+        WindowPlacementSnapshot saved = new(1920, 80, 1200, 700, WindowState.Normal, true);
+        Rect primary = new(0, 0, 1920, 1080);
+        Rect secondary = new(1920, 0, 1920, 1080);
+
+        WindowPlacementSnapshot resolved = WindowPlacementPolicy.Resolve(saved, [primary, secondary], primary);
+
+        Assert.Equal(1920, resolved.Left);
+        Assert.Equal(80, resolved.Top);
+        Assert.Equal(1200, resolved.Width);
+        Assert.Equal(700, resolved.Height);
+        Assert.Equal(WindowState.Normal, resolved.State);
+    }
+
+    [Fact]
+    public void WindowPlacementPolicy_Resolve_RecentersWhenSavedMonitorIsGone()
+    {
+        WindowPlacementSnapshot saved = new(2560, 100, 1280, 800, WindowState.Normal, true);
+        Rect primary = new(0, 0, 1920, 1080);
+
+        WindowPlacementSnapshot resolved = WindowPlacementPolicy.Resolve(saved, [primary], primary);
+
+        Assert.Equal((1920 - 1280) / 2.0, resolved.Left);
+        Assert.Equal((1080 - 800) / 2.0, resolved.Top);
+        Assert.Equal(1280, resolved.Width);
+        Assert.Equal(800, resolved.Height);
+    }
+
+    [Fact]
+    public void WindowPlacementPolicy_Resolve_ClampsSizeToFallbackWorkAreaWhenRelocating()
+    {
+        WindowPlacementSnapshot saved = new(4000, 0, 2000, 1200, WindowState.Maximized, true);
+        Rect primary = new(0, 0, 1366, 768);
+
+        WindowPlacementSnapshot resolved = WindowPlacementPolicy.Resolve(saved, [primary], primary);
+
+        Assert.Equal(1366, resolved.Width);
+        Assert.Equal(768, resolved.Height);
+        Assert.Equal(0, resolved.Left);
+        Assert.Equal(0, resolved.Top);
+        Assert.Equal(WindowState.Maximized, resolved.State);
+    }
+
+    [Fact]
+    public void WindowPlacementPolicy_Write_StoresNormalBoundsAndDropsMinimizedState()
+    {
+        ApplicationConfiguration config = new();
+
+        WindowPlacementPolicy.Write(
+            config,
+            WindowState.Minimized,
+            new Rect(40, 50, 1300, 720));
+
+        Assert.Equal(40, config.WindowLeft);
+        Assert.Equal(50, config.WindowTop);
+        Assert.Equal(1300, config.WindowWidth);
+        Assert.Equal(720, config.WindowHeight);
+        Assert.Equal(WindowState.Normal, config.WindowState);
+    }
+
+    [Fact]
+    public void WindowPlacementPolicy_IsVisibleOnAMonitor_FalseWhenFullyOffDisplays()
+    {
+        Rect window = new(4000, 2000, 1100, 650);
+        Rect primary = new(0, 0, 1920, 1080);
+
+        Assert.False(WindowPlacementPolicy.IsVisibleOnAMonitor(window, [primary]));
+    }
+
     [Theory]
     [InlineData(true, false, true)]
     [InlineData(true, true, false)]
